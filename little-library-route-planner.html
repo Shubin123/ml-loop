@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Little Library Loop — Route Planner</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F1E3;
+    --paper-2: #EFE6D0;
+    --ink: #2B2620;
+    --ink-soft: #6B6154;
+    --barn: #A63D2C;
+    --barn-dark: #832F22;
+    --pine: #3F5D42;
+    --pine-dark: #2E4632;
+    --mustard: #D7A32E;
+    --line: rgba(43,38,32,0.14);
+    --card: #FFFDF8;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:'Inter', sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    overflow:hidden;
+  }
+
+  header{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:14px 22px;
+    background:var(--paper);
+    border-bottom:2px solid var(--ink);
+    flex-shrink:0;
+  }
+  .logo-mark{
+    width:34px;height:34px;flex-shrink:0;
+  }
+  header h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:20px;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  header .subtitle{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-top:2px;
+  }
+  header .titles{display:flex;flex-direction:column;}
+
+  .app{
+    flex:1;
+    display:flex;
+    min-height:0;
+  }
+
+  #sidebar{
+    width:380px;
+    flex-shrink:0;
+    background:var(--card);
+    border-right:2px solid var(--ink);
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+
+  .panel{
+    padding:16px 18px;
+    border-bottom:1px solid var(--line);
+  }
+  .panel-title{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--pine-dark);
+    margin:0 0 10px 0;
+  }
+
+  .row{display:flex;gap:8px;align-items:center;}
+  .row + .row{margin-top:10px;}
+  label.field-label{
+    font-size:12px;
+    font-weight:600;
+    color:var(--ink-soft);
+    display:block;
+    margin-bottom:5px;
+  }
+
+  select, input[type="text"]{
+    width:100%;
+    padding:8px 10px;
+    border:1.5px solid var(--ink);
+    border-radius:6px;
+    background:var(--paper);
+    font-family:'Inter', sans-serif;
+    font-size:13.5px;
+    color:var(--ink);
+  }
+
+  input[type="range"]{
+    -webkit-appearance:none;
+    appearance:none;
+    height:5px;
+    border-radius:3px;
+    background:var(--paper-2);
+    border:1px solid var(--line);
+    outline:none;
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    appearance:none;
+    width:16px;height:16px;
+    border-radius:50%;
+    background:var(--pine);
+    border:2px solid var(--ink);
+    cursor:pointer;
+  }
+  input[type="range"]::-moz-range-thumb{
+    width:14px;height:14px;
+    border-radius:50%;
+    background:var(--pine);
+    border:2px solid var(--ink);
+    cursor:pointer;
+  }
+  input[type="checkbox"]{
+    width:15px;height:15px;
+    accent-color:var(--pine);
+    flex-shrink:0;
+  }
+
+  .toggle-group{
+    display:flex;
+    border:1.5px solid var(--ink);
+    border-radius:6px;
+    overflow:hidden;
+  }
+  .toggle-group button{
+    flex:1;
+    border:none;
+    background:var(--paper);
+    padding:8px 6px;
+    font-size:12.5px;
+    font-weight:600;
+    font-family:'Inter',sans-serif;
+    cursor:pointer;
+    color:var(--ink-soft);
+    border-right:1.5px solid var(--ink);
+  }
+  .toggle-group button:last-child{border-right:none;}
+  .toggle-group button.active{
+    background:var(--pine);
+    color:#fff;
+  }
+
+  .btn{
+    width:100%;
+    padding:11px 14px;
+    border:2px solid var(--ink);
+    border-radius:7px;
+    font-family:'Inter', sans-serif;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+    background:var(--mustard);
+    color:var(--ink);
+    transition:transform 0.06s ease;
+  }
+  .btn:active{transform:translateY(1px);}
+  .btn.primary{background:var(--pine);color:#fff;}
+  .btn.stop{background:var(--barn);color:#fff;}
+  .btn.ghost{background:var(--paper);font-weight:600;font-size:12.5px;padding:8px;}
+  .btn:disabled{opacity:0.45;cursor:not-allowed;}
+  .btn-row{display:flex;gap:8px;}
+  .btn-row .btn{flex:1;}
+
+  #dropzone{
+    border:2px dashed var(--ink-soft);
+    border-radius:8px;
+    padding:14px;
+    text-align:center;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    cursor:pointer;
+    transition:background 0.15s;
+  }
+  #dropzone:hover, #dropzone.drag{background:var(--paper-2);border-color:var(--pine);}
+  #dropzone input{display:none;}
+  #fileInfo{font-size:11.5px;color:var(--ink-soft);margin-top:6px;}
+
+  .stat-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  .stat-box{
+    background:var(--paper);
+    border:1.5px solid var(--line);
+    border-left:4px solid var(--mustard);
+    border-radius:6px;
+    padding:9px 11px;
+  }
+  .stat-box.accent{border-left-color:var(--pine);}
+  .stat-num{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size:19px;
+    line-height:1.1;
+  }
+  .stat-label{
+    font-size:10.5px;
+    color:var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    margin-top:3px;
+  }
+
+  #progressWrap{
+    margin-top:10px;
+    height:6px;
+    background:var(--paper-2);
+    border-radius:3px;
+    overflow:hidden;
+    display:none;
+  }
+  #progressBar{
+    height:100%;
+    width:0%;
+    background:var(--pine);
+    transition:width 0.15s ease;
+  }
+  #progressLabel{
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:5px;
+    display:none;
+    font-family:'IBM Plex Mono', monospace;
+  }
+
+  #routePanel{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+  #routeSearch{margin-bottom:8px;}
+  #routeList{
+    overflow-y:auto;
+    flex:1;
+    list-style:none;
+    margin:0;
+    padding:0 18px 18px 18px;
+  }
+  .stop-item{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    padding:9px 0;
+    border-bottom:1px solid var(--line);
+    cursor:pointer;
+  }
+  .stop-item:hover{background:var(--paper-2);}
+  .stop-num{
+    flex-shrink:0;
+    width:24px;height:24px;
+    border-radius:50%;
+    background:var(--pine);
+    color:#fff;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    font-weight:600;
+    display:flex;align-items:center;justify-content:center;
+    margin-top:1px;
+  }
+  .stop-item.start .stop-num{background:var(--pine-dark);}
+  .stop-item.end .stop-num{background:var(--barn);}
+  .stop-name{font-size:13.5px;font-weight:500;line-height:1.3;}
+  .stop-leg{font-size:11px;color:var(--ink-soft);margin-top:2px;font-family:'IBM Plex Mono', monospace;}
+
+  #map{flex:1;min-height:0;background:var(--paper-2);}
+
+  .leaflet-popup-content{font-family:'Inter',sans-serif;font-size:13px;}
+  .leaflet-popup-content b{font-family:'Fraunces',serif;}
+
+  #emptyState{
+    padding:40px 18px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:13px;
+  }
+
+  ::-webkit-scrollbar{width:9px;}
+  ::-webkit-scrollbar-thumb{background:var(--ink-soft);border-radius:5px;opacity:0.4;}
+
+  @media (max-width: 820px){
+    .app{flex-direction:column;}
+    #sidebar{width:100%;height:52%;border-right:none;border-bottom:2px solid var(--ink);}
+    #map{height:48%;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <svg class="logo-mark" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="10" y="20" width="28" height="22" rx="1.5" fill="#F7F1E3" stroke="#2B2620" stroke-width="2.2"/>
+    <path d="M6 20 L24 6 L42 20" stroke="#A63D2C" stroke-width="3" stroke-linejoin="round" fill="#A63D2C"/>
+    <rect x="21" y="29" width="6" height="13" fill="#3F5D42"/>
+    <rect x="14" y="25" width="6" height="6" fill="#D7A32E" stroke="#2B2620" stroke-width="1"/>
+  </svg>
+  <div class="titles">
+    <h1>Little Library Loop</h1>
+    <div class="subtitle">A route planner for visiting every little free library — built as a travelling‑salesman solver</div>
+  </div>
+</header>
+
+<div class="app">
+  <div id="sidebar">
+
+    <div class="panel">
+      <div class="panel-title">Stops data</div>
+      <div id="dropzone">
+        <div id="dropzoneLabel">Using the 1,081 Greater Victoria little libraries. Drop a different KML here, or click to browse.</div>
+        <input type="file" id="fileInput" accept=".kml" />
+      </div>
+      <div id="fileInfo"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Route settings</div>
+      <div class="row">
+        <div style="flex:1;">
+          <label class="field-label">Trip type</label>
+          <div class="toggle-group">
+            <button id="modeLoop" class="active">Round trip</button>
+            <button id="modeOpen">One‑way</button>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div style="flex:1;">
+          <label class="field-label">Distance mode</label>
+          <div class="toggle-group">
+            <button id="distDirect" class="active">Direct (straight‑line)</button>
+            <button id="distDriving">Driving (roads)</button>
+          </div>
+        </div>
+      </div>
+      <div id="drivingOptions" style="display:none;">
+        <div class="row">
+          <label style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--ink-soft);cursor:pointer;">
+            <input type="checkbox" id="optimizeDrivingChk" style="margin-top:2px;" />
+            <span>Also optimize using real driving distances (slower — best for small stop counts)</span>
+          </label>
+        </div>
+        <div id="drivingCapNote" style="font-size:11px;color:var(--ink-soft);margin-top:4px;"></div>
+        <div id="drivingFetchNote" style="display:none;font-size:11.5px;color:var(--pine-dark);margin-top:6px;padding:6px 8px;background:var(--paper-2);border-radius:5px;"></div>
+        <div style="font-size:10.5px;color:var(--ink-soft);margin-top:6px;">Routing via the public OSRM demo server — free and best‑effort, may be slow or rate‑limited for large trips.</div>
+      </div>
+      <div class="row">
+        <div style="flex:1;">
+          <label class="field-label">Start from</label>
+          <select id="startSelect"></select>
+        </div>
+      </div>
+      <div class="row">
+        <div style="flex:1;">
+          <label class="field-label">Range from start</label>
+          <input type="range" id="radiusSlider" min="0.5" max="30" step="0.5" value="30" style="width:100%;" />
+          <div id="radiusLabel" style="font-size:11px;color:var(--ink-soft);margin-top:3px;font-family:'IBM Plex Mono', monospace;"></div>
+        </div>
+      </div>
+      <div class="row">
+        <div style="flex:1;">
+          <label class="field-label">Optimization effort</label>
+          <select id="effortSelect">
+            <option value="2000">Quick (2s)</option>
+            <option value="8000" selected>Balanced (8s)</option>
+            <option value="20000">Thorough (20s)</option>
+            <option value="60000">Maximum (60s)</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft);cursor:pointer;">
+          <input type="checkbox" id="gpuChk" checked />
+          <span>Use GPU acceleration when available</span>
+        </label>
+      </div>
+      <div id="gpuStatus" style="font-size:11px;color:var(--ink-soft);margin-top:4px;font-family:'IBM Plex Mono', monospace;"></div>
+      <div class="row" style="margin-top:12px;">
+        <div class="btn-row">
+          <button class="btn primary" id="solveBtn">Solve route</button>
+          <button class="btn stop" id="stopBtn" style="display:none;">Stop</button>
+        </div>
+      </div>
+      <div id="progressWrap"><div id="progressBar"></div></div>
+      <div id="progressLabel"></div>
+    </div>
+
+    <div class="panel" id="statsPanel" style="display:none;">
+      <div class="panel-title">Trip summary</div>
+      <div class="stat-grid">
+        <div class="stat-box">
+          <div class="stat-num" id="statStops">–</div>
+          <div class="stat-label">Stops</div>
+        </div>
+        <div class="stat-box accent">
+          <div class="stat-num" id="statDist">–</div>
+          <div class="stat-label">Total distance</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" id="statImprove">–</div>
+          <div class="stat-label">vs. unoptimized</div>
+        </div>
+        <div class="stat-box accent">
+          <div class="stat-num" id="statTime">–</div>
+          <div class="stat-label">Solve time</div>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn ghost" id="downloadGpx">Download GPX</button>
+        <button class="btn ghost" id="downloadCsv">Download CSV</button>
+      </div>
+    </div>
+
+    <div class="panel" style="padding-bottom:8px;">
+      <div class="panel-title">Stop order</div>
+      <input type="text" id="routeSearch" placeholder="Filter stops by name…" />
+    </div>
+    <div id="routePanel">
+      <ul id="routeList"></ul>
+      <div id="emptyState">Click "Solve route" to generate an optimized visiting order.</div>
+    </div>
+
+  </div>
+
+  <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const RAW_DATA = [{"name": "221B Baker St.", "lat": 48.4752468, "lon": -123.3874428}, {"name": "A Kinder Cup LFL", "lat": 48.4473319, "lon": -123.4274976}, {"name": "A La Mode LFL", "lat": 48.4267802, "lon": -123.3167365}, {"name": "A Novel Idea LFL", "lat": 48.4518412, "lon": -123.3840433}, {"name": "Admiral's LFL", "lat": 48.4309186, "lon": -123.4374412}, {"name": "Admirals Road LFL", "lat": 48.4276415, "lon": -123.4168804}, {"name": "Agate Little Free Library", "lat": 48.5240304, "lon": -123.3676779}, {"name": "AHVS LFL", "lat": 48.4620998, "lon": -123.3165378}, {"name": "Albert Ave. Book Nook", "lat": 48.4332484, "lon": -123.3325686}, {"name": "Alder Street Little Free Library", "lat": 48.4475075, "lon": -123.366471}, {"name": "Aldersmith Pages", "lat": 48.4664788, "lon": -123.4414275}, {"name": "Allbay Books", "lat": 48.6639528, "lon": -123.4047632}, {"name": "Allendale Books", "lat": 48.4253615, "lon": -123.4932433}, {"name": "Alley Books", "lat": 48.4117429, "lon": -123.3369897}, {"name": "Alpine Crescent LFL", "lat": 48.4706632, "lon": -123.2980037}, {"name": "Amah's Library", "lat": 48.4160079, "lon": -123.3151122}, {"name": "Ambassador Ave", "lat": 48.4770323, "lon": -123.3684826}, {"name": "Amelia Little Library", "lat": 48.6586036, "lon": -123.4064605}, {"name": "Amherst LFL", "lat": 48.6580485, "lon": -123.408897}, {"name": "Anchorage Books", "lat": 48.5725766, "lon": -123.462113}, {"name": "Anne's Little Library", "lat": 48.4855967, "lon": -123.3041613}, {"name": "A Novel Idea", "lat": 48.4823412, "lon": -123.3713094}, {"name": "Aquarius Books", "lat": 48.3589438, "lon": -123.5589302}, {"name": "Arbutus Books", "lat": 48.844724, "lon": -123.2517404}, {"name": "Arcand Library", "lat": 48.9270948, "lon": -123.4549662}, {"name": "Arlene Place LFL", "lat": 48.4657396, "lon": -123.3924125}, {"name": "Arnold LFL", "lat": 48.414819, "lon": -123.3412634}, {"name": "Arthur Drive Library", "lat": 48.5994659, "lon": -123.3932447}, {"name": "Art n' Zine Library", "lat": 48.4274753, "lon": -123.4192989}, {"name": "Ascot Books", "lat": 48.463235, "lon": -123.3467711}, {"name": "Asquith LFL - Lower", "lat": 48.4369999, "lon": -123.341112}, {"name": "Asquith LFL - Upper", "lat": 48.4393017, "lon": -123.3409984}, {"name": "Astoria LFL and Free Shop 🍽🍞", "lat": 48.4561707, "lon": -123.3493386}, {"name": "Athlone Books", "lat": 48.4676137, "lon": -123.3427468}, {"name": "Avondale Books", "lat": 48.4551523, "lon": -123.3173879}, {"name": "BaaBaa Books", "lat": 48.3922676, "lon": -123.5532215}, {"name": "B&W Books", "lat": 48.4405817, "lon": -123.3077633}, {"name": "Baba Yaga Books", "lat": 48.6162521, "lon": -123.4200357}, {"name": "Baily Cool Memorial Bookmobile", "lat": 48.4635135, "lon": -123.5135016}, {"name": "Balmacarra Books", "lat": 48.4927294, "lon": -123.3127075}, {"name": "Balmoral Books", "lat": 48.4283255, "lon": -123.3515946}, {"name": "Barbara Books", "lat": 48.5657963, "lon": -123.4020332}, {"name": "Barkley Books", "lat": 48.4127166, "lon": -123.325316}, {"name": "Barrett Drive", "lat": 48.6145338, "lon": -123.4200883}, {"name": "Basil Avenue Books", "lat": 48.4416645, "lon": -123.3487952}, {"name": "Baxter Book Borrow", "lat": 48.4739816, "lon": -123.3910763}, {"name": "Baynes Book Exchange on Baynes Road", "lat": 48.4537696, "lon": -123.2667947}, {"name": "Bay Street Little Library", "lat": 48.4336486, "lon": -123.3313574}, {"name": "Beach Books", "lat": 48.8997337, "lon": -123.3462858}, {"name": "Beach Books on Estavan", "lat": 48.4362356, "lon": -123.3043071}, {"name": "Beach House Little Library", "lat": 48.5215698, "lon": -123.3670504}, {"name": "Beachcombers Library on Oliver Street", "lat": 48.4144691, "lon": -123.3132291}, {"name": "Beaver Books", "lat": 48.5013133, "lon": -123.4137027}, {"name": "Beaver Lake Books", "lat": 48.5055137, "lon": -123.4059877}, {"name": "Beaver Lake Park LFL", "lat": 48.5081438, "lon": -123.4007482}, {"name": "Becher Books", "lat": 48.3397676, "lon": -123.631362}, {"name": "Beckley Cottage Book Box", "lat": 48.4164181, "lon": -123.3716786}, {"name": "Beddis Book Exchange", "lat": 48.8099704, "lon": -123.4325506}, {"name": "Beechwood Ave", "lat": 48.4097013, "lon": -123.3327985}, {"name": "Beechwood Books", "lat": 48.4120494, "lon": -123.3329299}, {"name": "Beehive Books", "lat": 48.4494965, "lon": -123.4175648}, {"name": "Bella Street", "lat": 48.4342442, "lon": -123.3853644}, {"name": "Bella's Books on Redwood Ave", "lat": 48.4566016, "lon": -123.319087}, {"name": "Belmont Books - Blue", "lat": 48.4367518, "lon": -123.3395032}, {"name": "Belmont Books", "lat": 48.4399106, "lon": -123.3395463}, {"name": "Belmont Reads", "lat": 48.436933, "lon": -123.4603289}, {"name": "Belmont LFL and Gallery", "lat": 48.4344517, "lon": -123.3399402}, {"name": "Bel Nor Books", "lat": 48.4722012, "lon": -123.3374124}, {"name": "Berlin's Book Box", "lat": 48.4454868, "lon": -123.3416053}, {"name": "Betty's Book Boutique on Balsam Road", "lat": 48.6332994, "lon": -123.4239078}, {"name": "Bevliotèque", "lat": 48.4473937, "lon": -123.3388827}, {"name": "Bewdley Books", "lat": 48.4242347, "lon": -123.4127915}, {"name": "Bittancourt Neighbourhood LFL", "lat": 48.845674, "lon": -123.4942915}, {"name": "Bird Books", "lat": 48.4235202, "lon": -123.3063488}, {"name": "Black Cat Books - Off Clawthrope Park", "lat": 48.4475005, "lon": -123.3403619}, {"name": "Black Cat Library", "lat": 48.4786493, "lon": -123.3164096}, {"name": "Black Cat Library", "lat": 48.4762718, "lon": -123.365571}, {"name": "Blackwood Take a Book - Leave a Book", "lat": 48.4412813, "lon": -123.354012}, {"name": "Blair Ave. Take a Book, Leave a Book", "lat": 48.4730429, "lon": -123.3285269}, {"name": "Blue Bird Book Box", "lat": 48.4611052, "lon": -123.2979995}, {"name": "Bluebird Books", "lat": 48.4615363, "lon": -123.2969694}, {"name": "Blue Book Box on Wilson", "lat": 48.4326701, "lon": -123.3883783}, {"name": "BlueKayak LFL", "lat": 48.4256282, "lon": -123.3595789}, {"name": "Boats on the Roof", "lat": 48.41358, "lon": -123.3732082}, {"name": "Books at Spring and Denman", "lat": 48.4328847, "lon": -123.3475803}, {"name": "Book Bin at Cook and Fairfield", "lat": 48.4182378, "lon": -123.3557687}, {"name": "Book Exchange on Falkland Road", "lat": 48.4205217, "lon": -123.3198971}, {"name": "Book Hive", "lat": 48.4654884, "lon": -123.349309}, {"name": "Book House on Hutchinson Ave", "lat": 48.4365398, "lon": -123.4103895}, {"name": "Book House on the Gorge", "lat": 48.448469, "lon": -123.4027035}, {"name": "Book Smarts", "lat": 48.838378, "lon": -123.3134147}, {"name": "Books in a Bush", "lat": 48.4360347, "lon": -123.3307084}, {"name": "Books on Bay", "lat": 48.4316435, "lon": -123.3836669}, {"name": "Books on Beach Drive", "lat": 48.4305548, "lon": -123.307264}, {"name": "Books on Chapman St.", "lat": 48.4130055, "lon": -123.3544531}, {"name": "Books on Caleb Pike Rd.", "lat": 48.508131, "lon": -123.5219376}, {"name": "Books on Calumet", "lat": 48.4544704, "lon": -123.3670254}, {"name": "Books on Dean", "lat": 48.4452949, "lon": -123.3246452}, {"name": "Books on Fraser", "lat": 48.4266248, "lon": -123.4142641}, {"name": "Books on Graham St. 🍽", "lat": 48.4367657, "lon": -123.3551529}, {"name": "Books on Mann", "lat": 48.4873931, "lon": -123.3909955}, {"name": "Books on Nicholson", "lat": 48.4749323, "lon": -123.3688465}, {"name": "Books on Selkirk", "lat": 48.4416397, "lon": -123.3953439}, {"name": "Book Stop on Metchosin Road", "lat": 48.4216644, "lon": -123.4864515}, {"name": "Books on Pembroke", "lat": 48.4317235, "lon": -123.3483945}, {"name": "Boulevard Books on Orillia Street", "lat": 48.4483116, "lon": -123.3960235}, {"name": "Bowerbank Book Nook", "lat": 48.6623018, "lon": -123.4100313}, {"name": "Bowker Books", "lat": 48.4329383, "lon": -123.3091642}, {"name": "Brentwood Blooms Library", "lat": 48.5750814, "lon": -123.4609318}, {"name": "Broadmead Books", "lat": 48.4614128, "lon": -123.3304249}, {"name": "Broadmead Farm LFL", "lat": 48.5019542, "lon": -123.3738356}, {"name": "Brooke Street", "lat": 48.4145047, "lon": -123.3406305}, {"name": "Browning St. LFL", "lat": 48.4498893, "lon": -123.3345071}, {"name": "Bryophyte Books", "lat": 48.4108618, "lon": -123.3500041}, {"name": "Bucky's Library/Bibliothèque", "lat": 48.4171684, "lon": -123.3539805}, {"name": "Bugs N' Books", "lat": 48.45333, "lon": -123.3997679}, {"name": "Burgoyne Valley LFL", "lat": 48.7804122, "lon": -123.486419}, {"name": "Burnett Books", "lat": 48.4617789, "lon": -123.4408887}, {"name": "Burnside Road at Granville Road", "lat": 48.4736326, "lon": -123.4294224}, {"name": "Bus Stop Books - Birch and W. Saanich", "lat": 48.6792117, "lon": -123.4575117}, {"name": "Bus Stop Books - Highway 17A and 17", "lat": 48.6768522, "lon": -123.4274993}, {"name": "Bus Stop Books - W. Saanich Rd.", "lat": 48.621638, "lon": -123.4646521}, {"name": "Bus Stop Books - W. Saanich Rd. and Ardmore", "lat": 48.6438555, "lon": -123.4582188}, {"name": "Bus Stop Books - W. Saanich and Totem Lane", "lat": 48.6648451, "lon": -123.4538576}, {"name": "Busy Bee Books", "lat": 48.4295155, "lon": -123.3382938}, {"name": "Byng Street", "lat": 48.4196993, "lon": -123.3059925}, {"name": "Byron Road Community Library", "lat": 48.9118311, "lon": -123.5566448}, {"name": "Cadboro Bay Beach Book Box", "lat": 48.4571001, "lon": -123.2975313}, {"name": "Cadboro Bay Books", "lat": 48.458528, "lon": -123.2998656}, {"name": "Cadboro Bay LFL", "lat": 48.4611514, "lon": -123.2916535}, {"name": "Caleb Pike LFL", "lat": 48.5097978, "lon": -123.5187709}, {"name": "Cambridge Street", "lat": 48.4078958, "lon": -123.3555007}, {"name": "Camp Barnard Books", "lat": 48.4073084, "lon": -123.7613681}, {"name": "Campus Crescent Little Book House", "lat": 48.4624159, "lon": -123.3228392}, {"name": "Canora Rd. LFL", "lat": 48.6406115, "lon": -123.4172033}, {"name": "Carnsew Take a Book - Leave a Book", "lat": 48.4169508, "lon": -123.3469541}, {"name": "Carrick Street Book Nook", "lat": 48.4368743, "lon": -123.3290863}, {"name": "Casa Linda Caixa de Livros", "lat": 48.4355998, "lon": -123.3544673}, {"name": "Casa Linda Reads", "lat": 48.4907634, "lon": -123.394181}, {"name": "Casa Marcia Little Library", "lat": 48.4881743, "lon": -123.3108021}, {"name": "Cast Iron Farm LFL", "lat": 48.3963938, "lon": -123.7100922}, {"name": "Castleview Child Care Centre", "lat": 48.4232131, "lon": -123.3435059}, {"name": "Cathedral Books", "lat": 48.6133795, "lon": -123.4369361}, {"name": "Catherine St. LFL", "lat": 48.4345728, "lon": -123.3847179}, {"name": "CCRR LFL", "lat": 48.8599328, "lon": -123.5093965}, {"name": "Cecelia Cove LFL", "lat": 48.4415629, "lon": -123.3801744}, {"name": "Cedar Hill Free Little Gallery and Library", "lat": 48.444329, "lon": -123.3474087}, {"name": "Cedar Hill LFL", "lat": 48.4685901, "lon": -123.3528606}, {"name": "Cedar Hill Rec Centre Little Free Poetry Library", "lat": 48.4495833, "lon": -123.3437417}, {"name": "Cedar Hill Take a Book Leave a Book", "lat": 48.4604174, "lon": -123.3256115}, {"name": "Cedar Ridge Books", "lat": 48.5881601, "lon": -123.386029}, {"name": "Cedarcrest Little Free Library", "lat": 48.4303467, "lon": -123.4921646}, {"name": "Central Saanich Estates LFL", "lat": 48.5913874, "lon": -123.4016265}, {"name": "Central Saanich United Church Little Book Exchange", "lat": 48.5772805, "lon": -123.4070926}, {"name": "Chamberlain Books", "lat": 48.4254561, "lon": -123.3270513}, {"name": "Charles Place LFL", "lat": 48.464389, "lon": -123.3457563}, {"name": "Charmar Free Library", "lat": 48.453721, "lon": -123.4946972}, {"name": "Cheltenham Street LFL", "lat": 48.4646136, "lon": -123.4266442}, {"name": "Cheri’s Little Free Library in Sooke", "lat": 48.3933705, "lon": -123.6710141}, {"name": "Child Care Resource and Referral LFL", "lat": 48.5755941, "lon": -123.4451539}, {"name": "Children's Books on Drake", "lat": 48.850652, "lon": -123.5028942}, {"name": "Children's Free Library on Pearl St.", "lat": 48.4418717, "lon": -123.3372214}, {"name": "Chill Books", "lat": 48.4329354, "lon": -123.3873611}, {"name": "Chown Books", "lat": 48.4458701, "lon": -123.3871646}, {"name": "Christmas Hill Estates LFL", "lat": 48.4728767, "lon": -123.3744512}, {"name": "Chuck's Book Nook", "lat": 48.7635438, "lon": -123.2920115}, {"name": "Church Hill Books", "lat": 48.3859564, "lon": -123.7212092}, {"name": "Churchmouse Books", "lat": 48.4280564, "lon": -123.3191691}, {"name": "Church of the Advent LFL", "lat": 48.4373266, "lon": -123.4889983}, {"name": "Centennial United Church LFL", "lat": 48.4389243, "lon": -123.3694804}, {"name": "Chapman Book Box", "lat": 48.4128916, "lon": -123.3535113}, {"name": "Chester LFL", "lat": 48.4150638, "lon": -123.3541354}, {"name": "Chicken Coop Books on Denman St.", "lat": 48.4326822, "lon": -123.3456815}, {"name": "Clare Street", "lat": 48.4249859, "lon": -123.3283567}, {"name": "Claremont Ave LFL", "lat": 48.5179076, "lon": -123.3776367}, {"name": "Claremont Books", "lat": 48.5185485, "lon": -123.3686184}, {"name": "Claremont FLL", "lat": 48.5180619, "lon": -123.3753737}, {"name": "Clarence St. Library", "lat": 48.4138008, "lon": -123.3732803}, {"name": "Claude Rd. LFL", "lat": 48.4519009, "lon": -123.4976715}, {"name": "Clive Drive", "lat": 48.4269402, "lon": -123.3129823}, {"name": "Clovelly Terrace LFL", "lat": 48.4560046, "lon": -123.3552682}, {"name": "Cloverdale Traditional LFL", "lat": 48.4532916, "lon": -123.359523}, {"name": "Cloverhurst LFL", "lat": 48.4533266, "lon": -123.3640383}, {"name": "Clover Point Books", "lat": 48.4066549, "lon": -123.349154}, {"name": "Cold Shoulder Cafe LFL", "lat": 48.4228144, "lon": -124.0586579}, {"name": "Colin Place Little Free Library", "lat": 48.5910858, "lon": -123.4228778}, {"name": "Collinson Books", "lat": 48.4197501, "lon": -123.3597508}, {"name": "Collinson Street Book Exchange", "lat": 48.4189766, "lon": -123.3547497}, {"name": "Colquitz Little Free Library", "lat": 48.4534423, "lon": -123.4135652}, {"name": "Columbia Drive Book Box", "lat": 48.483746, "lon": -123.3316505}, {"name": "Colville Road", "lat": 48.4388869, "lon": -123.39472}, {"name": "Colwood Creek Park Libraries 🍽", "lat": 48.4325536, "lon": -123.5037195}, {"name": "Colwood Crescent LFL", "lat": 48.4399836, "lon": -123.4736767}, {"name": "Community Blessing Box", "lat": 48.4359135, "lon": -123.3893196}, {"name": "Community Book Exchange on Hillside Ave", "lat": 48.4400631, "lon": -123.3526468}, {"name": "Community of Christ Little Free Library - Burnside and Jutland", "lat": 48.4442196, "lon": -123.3742976}, {"name": "Connie Rd. Reads", "lat": 48.3970103, "lon": -123.6193345}, {"name": "Community Pantry and Exchange Box on Hillside Ave. 🍞🍽", "lat": 48.4400631, "lon": -123.3526468}, {"name": "Connie's Cookie Jar - LFL", "lat": 48.4590809, "lon": -123.3716926}, {"name": "Connorton Books", "lat": 48.4556871, "lon": -123.3531147}, {"name": "Constance Comment", "lat": 48.426924, "lon": -123.4181344}, {"name": "Cornerstone LFL", "lat": 48.4322623, "lon": -123.3497567}, {"name": "Cornwall LFL", "lat": 48.417867, "lon": -123.349326}, {"name": "Cotlow Road", "lat": 48.415523, "lon": -123.4867465}, {"name": "Country Gardens LFL", "lat": 48.4772389, "lon": -123.4103439}, {"name": "Country Road Reads", "lat": 48.3813058, "lon": -123.7181663}, {"name": "Cowichan Reads", "lat": 48.4213918, "lon": -123.3250403}, {"name": "Cowichan St. LFL", "lat": 48.4232802, "lon": -123.3251206}, {"name": "Craigflower Rd. LFL", "lat": 48.4433575, "lon": -123.4047938}, {"name": "Craigflower School LFL", "lat": 48.4536584, "lon": -123.42064}, {"name": "Crescent Rd. LFL", "lat": 48.4120255, "lon": -123.3275816}, {"name": "Crestview Corner LFL", "lat": 48.4593709, "lon": -123.3025754}, {"name": "Crossroads LFL", "lat": 48.5688069, "lon": -123.4026413}, {"name": "Crystalview Books", "lat": 48.4503222, "lon": -123.4771743}, {"name": "Culduthel Books", "lat": 48.4534073, "lon": -123.3800579}, {"name": "Cumberland Road at Palmer Road", "lat": 48.4633179, "lon": -123.355608}, {"name": "Cumberland Road LFL", "lat": 48.4718609, "lon": -123.358344}, {"name": "Currie Road", "lat": 48.4218888, "lon": -123.3058369}, {"name": "Daisy's Book Den", "lat": 48.4549712, "lon": -123.3803623}, {"name": "Dalhousie Book Exchange", "lat": 48.4351803, "lon": -123.3158469}, {"name": "Dallas Rd. Community Book Exchange", "lat": 48.4167838, "lon": -123.3848375}, {"name": "Damelart Books", "lat": 48.5768351, "lon": -123.4532038}, {"name": "Danish Mustard Reads", "lat": 48.4453887, "lon": -123.391902}, {"name": "Darwin Ave", "lat": 48.4593658, "lon": -123.3742333}, {"name": "Davie Street", "lat": 48.430183, "lon": -123.3267689}, {"name": "Dean Park LFL", "lat": 48.6176527, "lon": -123.4214206}, {"name": "Dean Park Road", "lat": 48.6175128, "lon": -123.4310532}, {"name": "DeCosta Nada Little Library", "lat": 48.4422945, "lon": -123.3952879}, {"name": "Deep Cove Books", "lat": 48.6754281, "lon": -123.4824608}, {"name": "Deep Cove Books 4 Kids!", "lat": 48.6755202, "lon": -123.4825412}, {"name": "Deep Cove Neighbourhood Book Exchange", "lat": 48.6734498, "lon": -123.4774876}, {"name": "Deja Vu Library", "lat": 48.4807824, "lon": -123.3455999}, {"name": "Delmonte Reads", "lat": 48.5281495, "lon": -123.3783198}, {"name": "Denman Book House", "lat": 48.4327528, "lon": -123.3379567}, {"name": "Derby Commons Library", "lat": 48.4554096, "lon": -123.3512038}, {"name": "Desmond and Park LFL", "lat": 48.8574509, "lon": -123.5076978}, {"name": "Desmond Drive LFL", "lat": 48.4140418, "lon": -123.5135472}, {"name": "Despard LFL", "lat": 48.4188263, "lon": -123.3351427}, {"name": "Devonshire Reads", "lat": 48.4356971, "lon": -123.4024812}, {"name": "Dino Books", "lat": 48.4624031, "lon": -123.3890444}, {"name": "Dive Inn", "lat": 48.4124955, "lon": -123.3352425}, {"name": "Dockeside Books", "lat": 48.4244211, "lon": -123.3020986}, {"name": "Dog Library of Saxe Point 🐶", "lat": 48.4241421, "lon": -123.4137132}, {"name": "Donald St. LFL and Puzzle Library", "lat": 48.4477154, "lon": -123.3952146}, {"name": "Doric LFL", "lat": 48.4464647, "lon": -123.3826176}, {"name": "Dornier Books", "lat": 48.4430383, "lon": -123.5343517}, {"name": "Dougall Ave. Neighbourhood Book Exchange", "lat": 48.4868938, "lon": -123.3310354}, {"name": "Dowler LFL", "lat": 48.4361771, "lon": -123.361121}, {"name": "Dragon Alley", "lat": 48.4293785, "lon": -123.3683538}, {"name": "Dragon's Lair", "lat": 48.4142762, "lon": -123.3505347}, {"name": "Dragon's Lair Books", "lat": 48.4476533, "lon": -123.3867676}, {"name": "Driftwood LFL on Estevan", "lat": 48.4381629, "lon": -123.3135718}, {"name": "Duck Bay Books", "lat": 48.8861011, "lon": -123.5747486}, {"name": "Duke Street Books", "lat": 48.4601787, "lon": -123.3566377}, {"name": "Dunlevy Books", "lat": 48.4380072, "lon": -123.3068945}, {"name": "Dumsmuir Book House", "lat": 48.4283457, "lon": -123.401099}, {"name": "Dunsmuir Little Library", "lat": 48.4279689, "lon": -123.4012163}, {"name": "Dunsmuir Road Little Library and Pantry 🍞", "lat": 48.4304009, "lon": -123.3964865}, {"name": "Dunsmuir Tree LFL", "lat": 48.4274392, "lon": -123.4036659}, {"name": "Duke Road - Bring - A Book - Take", "lat": 48.3880357, "lon": -123.5047817}, {"name": "Durban Library", "lat": 48.4158257, "lon": -123.3456195}, {"name": "Dysart Road", "lat": 48.4512222, "lon": -123.4086728}, {"name": "Eagle Ridge Reads", "lat": 48.8638412, "lon": -123.4826716}, {"name": "Eagle View LFL", "lat": 48.4659951, "lon": -123.4419092}, {"name": "Earl Gray Xchg", "lat": 48.4501882, "lon": -123.3891738}, {"name": "Earlston Books", "lat": 48.4639858, "lon": -123.3290048}, {"name": "Easter Rd. Book Elevator", "lat": 48.4605914, "lon": -123.3647621}, {"name": "East of the Sun, West of the Moon LFL", "lat": 48.8342318, "lon": -123.3098274}, {"name": "East Sooke Ang's Book Nook", "lat": 48.3611127, "lon": -123.6760282}, {"name": "East Point Books", "lat": 48.7935275, "lon": -123.1823678}, {"name": "Eberts St. Little Library", "lat": 48.4099821, "lon": -123.3465686}, {"name": "Edgemont Reads", "lat": 48.4906749, "lon": -123.3326395}, {"name": "Edith Point Little Library", "lat": 48.8644737, "lon": -123.2709786}, {"name": "Elaine Way LFL", "lat": 48.5531659, "lon": -123.3938306}, {"name": "Elk Road", "lat": 48.5039669, "lon": -123.4183717}, {"name": "Ella's Little Library", "lat": 48.494009, "lon": -123.3622465}, {"name": "Emergency Book Box", "lat": 48.8893251, "lon": -123.3491122}, {"name": "Emma's Free Book Library", "lat": 48.483413, "lon": -123.3257968}, {"name": "Empress and Chambers LFL", "lat": 48.4342976, "lon": -123.3493209}, {"name": "Emily's Little Library", "lat": 48.3872192, "lon": -123.7212495}, {"name": "Enchanted Forest LFL", "lat": 48.7483632, "lon": -123.2258839}, {"name": "Ernhill Little Library", "lat": 48.4311296, "lon": -123.5197094}, {"name": "Esquimalt Branch LFL", "lat": 48.4309274, "lon": -123.3974629}, {"name": "Esquimalt Bread Box 🍞", "lat": 48.4281947, "lon": -123.403143}, {"name": "Esquimalt Kids Books LFL", "lat": 48.423836, "lon": -123.4119534}, {"name": "Esquimalt Neighbourhood House LFL", "lat": 48.4287564, "lon": -123.4181342}, {"name": "Esquimalt Rec Centre Book Exchange", "lat": 48.4287842, "lon": -123.4128237}, {"name": "Esquimalt Rec Senior's Centre", "lat": 48.4284994, "lon": -123.4129858}, {"name": "Esquimalt Road Reads", "lat": 48.4309552, "lon": -123.3923814}, {"name": "Esquimalt United Church on Admiral's Road", "lat": 48.4284317, "lon": -123.4171379}, {"name": "Farhill Book Exchange", "lat": 48.3982721, "lon": -123.4943634}, {"name": "Fairburn Dr. LFL", "lat": 48.4741816, "lon": -123.3170334}, {"name": "Fairfield Community Centre", "lat": 48.415053, "lon": -123.3483446}, {"name": "Fairfield Purple Book Box", "lat": 48.4154328, "lon": -123.3269534}, {"name": "Fairfield Rd. Yarn Barn 🧶", "lat": 48.4154328, "lon": -123.328555}, {"name": "Fair St. Books", "lat": 48.4348802, "lon": -123.3174501}, {"name": "Falaise Lending Library", "lat": 48.5003465, "lon": -123.3793871}, {"name": "Fall Some Book Exchange", "lat": 48.3896607, "lon": -123.525386}, {"name": "Fantasy Library", "lat": 48.4559751, "lon": -123.4110971}, {"name": "Felix Jack Books", "lat": 48.8469615, "lon": -123.2852804}, {"name": "Feltham Book Cabin", "lat": 48.4758695, "lon": -123.3152362}, {"name": "Fern Street Park LFL", "lat": 48.4288842, "lon": -123.3339275}, {"name": "Fernwood and Gladstone LFL", "lat": 48.4306564, "lon": -123.345252}, {"name": "Fernwood Community Centre", "lat": 48.4306813, "lon": -123.3480415}, {"name": "Fernwood Community Pantry", "lat": 48.4301767, "lon": -123.3449562}, {"name": "Fernwood Rd. Books", "lat": 48.4377101, "lon": -123.3450521}, {"name": "Fernwood Square LFL", "lat": 48.4305532, "lon": -123.3458018}, {"name": "Fernwood Yarn Library 🧶", "lat": 48.4300842, "lon": -123.3450643}, {"name": "First St. LFL", "lat": 48.6469591, "lon": -123.3955119}, {"name": "Fifth St. Poetry Hut", "lat": 48.4473031, "lon": -123.3599286}, {"name": "Fleetwood LFL", "lat": 48.4622567, "lon": -123.5063357}, {"name": "Florence Street Book Exchange", "lat": 48.4355722, "lon": -123.3209355}, {"name": "Flowers & Friends", "lat": 48.4366693, "lon": -123.3179638}, {"name": "Flower's and Such LFL", "lat": 48.4074036, "lon": -123.5044978}, {"name": "Forbes St. LFL", "lat": 48.4332926, "lon": -123.3385108}, {"name": "Forbes St. Books", "lat": 48.4368827, "lon": -123.3384155}, {"name": "Forest View LFL", "lat": 48.4167843, "lon": -123.718284}, {"name": "Forward Books", "lat": 48.4377834, "lon": -123.4588482}, {"name": "Foul Bay Books", "lat": 48.4132528, "lon": -123.3276393}, {"name": "Foul Bay Road at Leighton Road", "lat": 48.4287592, "lon": -123.3227885}, {"name": "Fourth St. LFL", "lat": 48.6525228, "lon": -123.3986824}, {"name": "Fox in Socks Book Box", "lat": 48.447576, "lon": -123.3920803}, {"name": "Francis Rd. LFL", "lat": 48.3588366, "lon": -123.7375934}, {"name": "Free Library on Duchess", "lat": 48.4297245, "lon": -123.3279198}, {"name": "Fulford Harbour Terminal LFL", "lat": 48.7692486, "lon": -123.4506721}, {"name": "Fulford Seniors Free Books", "lat": 48.7686752, "lon": -123.4486593}, {"name": "Fulton Rd. LFL with a View", "lat": 48.4168144, "lon": -123.5104712}, {"name": "Gabriola Lil' Library", "lat": 48.6613398, "lon": -123.4150015}, {"name": "Galaxy Library", "lat": 48.47186, "lon": -123.3138372}, {"name": "Galiano Island Little Library", "lat": 48.8787846, "lon": -123.317434}, {"name": "Gallifrey LFL", "lat": 48.4360137, "lon": -123.324318}, {"name": "Ganner Reads", "lat": 48.9222881, "lon": -123.4524025}, {"name": "Garden Street", "lat": 48.4350165, "lon": -123.3462471}, {"name": "Garden View LFL", "lat": 48.4360183, "lon": -123.3347726}, {"name": "Garnet Place Object Box", "lat": 48.4671413, "lon": -123.3345378}, {"name": "Gear Into Reading", "lat": 48.4334201, "lon": -123.3925927}, {"name": "Gladstone LFL", "lat": 48.4302619, "lon": -123.3400771}, {"name": "Glanford Share Shack", "lat": 48.472988, "lon": -123.3895121}, {"name": "Glasgow St. Free Library", "lat": 48.4483143, "lon": -123.3628778}, {"name": "Glenairlie Dr LFL", "lat": 48.4549409, "lon": -123.4317324}, {"name": "Glendenning Farm Library", "lat": 48.4804108, "lon": -123.3459398}, {"name": "Glen Lake LFL", "lat": 48.4427662, "lon": -123.5262578}, {"name": "Glentana Community Library", "lat": 48.4513329, "lon": -123.4289667}, {"name": "George Jay Book Box", "lat": 48.4328259, "lon": -123.3520293}, {"name": "Goldie Ave", "lat": 48.4685129, "lon": -123.4970636}, {"name": "Gonzales Ave", "lat": 48.4183152, "lon": -123.3288892}, {"name": "Gorge Park Community Garden", "lat": 48.4463351, "lon": -123.395872}, {"name": "Gorgeous Books", "lat": 48.450693, "lon": -123.412372}, {"name": "Gorge Rd. Take a Book - Leave a Book", "lat": 48.4493151, "lon": -123.405261}, {"name": "Gordon Point LFL", "lat": 48.4894577, "lon": -123.3025825}, {"name": "Gosper Crescent Library", "lat": 48.4450958, "lon": -123.4023803}, {"name": "Government Street", "lat": 48.411763, "lon": -123.3723235}, {"name": "Goyette Trading Library, Goyette Road", "lat": 48.502993, "lon": -123.3983731}, {"name": "Grafton St. LFL", "lat": 48.4278875, "lon": -123.423293}, {"name": "Graham St. Book Box", "lat": 48.4369899, "lon": -123.3552334}, {"name": "Grange Road", "lat": 48.46982, "lon": -123.4069347}, {"name": "Grant Rd. Reads", "lat": 48.3733167, "lon": -123.7471927}, {"name": "Great Scott LFL", "lat": 48.43921, "lon": -123.3350372}, {"name": "Greenlea Books", "lat": 48.4932064, "lon": -123.3907131}, {"name": "Greenridge LFL", "lat": 48.466114, "lon": -123.3666563}, {"name": "Greentree LFL", "lat": 48.4845667, "lon": -123.3152473}, {"name": "Greenway Co-op LFL", "lat": 48.4506189, "lon": -123.3655936}, {"name": "Grenville Ave. LFL", "lat": 48.4330803, "lon": -123.4156573}, {"name": "Grey Dragon Library", "lat": 48.4212835, "lon": -123.3792758}, {"name": "Guernsey Little Lending Library", "lat": 48.4149884, "lon": -123.3171019}, {"name": "Hagan Rd. LFL", "lat": 48.5773407, "lon": -123.4585749}, {"name": "Hallsor Books", "lat": 48.4315781, "lon": -123.489017}, {"name": "Hallway Books", "lat": 48.4665121, "lon": -123.3624208}, {"name": "Hamiota Reads", "lat": 48.4375602, "lon": -123.3107321}, {"name": "Hampshire Book Box", "lat": 48.4184114, "lon": -123.3158528}, {"name": "Hampshire Rd. LFL", "lat": 48.4283765, "lon": -123.3152674}, {"name": "Hampshire Terrace Library", "lat": 48.4251407, "lon": -123.3143122}, {"name": "Hampshire House LFL", "lat": 48.4195787, "lon": -123.3158129}, {"name": "Happy Rock LFL", "lat": 48.430534, "lon": -123.3428152}, {"name": "Harris Green Reads", "lat": 48.426964, "lon": -123.3518194}, {"name": "Happy Valley Neighbourhood Library", "lat": 48.4291272, "lon": -123.5291697}, {"name": "Harrison Ave. LFL", "lat": 48.8627592, "lon": -123.5294835}, {"name": "Harrop Reads", "lat": 48.4693601, "lon": -123.3440921}, {"name": "Harvest A Book", "lat": 48.4870141, "lon": -123.3421566}, {"name": "Haslam and Glenn Lake LFL", "lat": 48.4393212, "lon": -123.5162565}, {"name": "Hastily Constructed Books", "lat": 48.4533147, "lon": -123.3849928}, {"name": "Haultain LFL", "lat": 48.436117, "lon": -123.341846}, {"name": "Hawthorne Tales", "lat": 48.4876599, "lon": -123.3305685}, {"name": "Hazelwood LFL", "lat": 48.4260909, "lon": -123.5323883}, {"name": "Heading West", "lat": 48.45854, "lon": -123.4307694}, {"name": "Heart Pharmacy LFL", "lat": 48.4597397, "lon": -123.3321164}, {"name": "Hearts on Highfield", "lat": 48.5740174, "lon": -123.4216348}, {"name": "Heaslip Books", "lat": 48.4364756, "lon": -123.5010926}, {"name": "Hedgerow Books", "lat": 48.4526959, "lon": -123.4424765}, {"name": "Hedwig's Little Library", "lat": 48.4569486, "lon": -123.4917686}, {"name": "Hen & Hound Books", "lat": 48.8989487, "lon": -123.511492}, {"name": "Henderson Book Nook", "lat": 48.4521005, "lon": -123.315493}, {"name": "Henderson Rd. LFL", "lat": 48.4446208, "lon": -123.3183836}, {"name": "Hen House", "lat": 48.4632588, "lon": -123.3926646}, {"name": "Henry Ave. Books", "lat": 48.6531382, "lon": -123.4042503}, {"name": "Henry LFL", "lat": 48.65312, "lon": -123.4018647}, {"name": "Herald Food Pantry 🍞", "lat": 48.4272211, "lon": -123.4123296}, {"name": "Hereward Library", "lat": 48.4333054, "lon": -123.3936088}, {"name": "Hidden Valley LFL", "lat": 48.4620444, "lon": -123.5137605}, {"name": "Highlands Community Garden LFL", "lat": 48.4950141, "lon": -123.5136916}, {"name": "Highland Road Lil' Library", "lat": 48.4638301, "lon": -123.4565985}, {"name": "Hillside and Cook Books", "lat": 48.4402019, "lon": -123.3513727}, {"name": "Hillview Library", "lat": 48.4893826, "lon": -123.3258067}, {"name": "Holly's Corner", "lat": 48.4686224, "lon": -123.3928021}, {"name": "Honeycrisp Books", "lat": 48.4182718, "lon": -123.5313759}, {"name": "Honeysuckle Studio", "lat": 48.6447744, "lon": -123.3979171}, {"name": "Hope LFL", "lat": 48.4369028, "lon": -123.3247593}, {"name": "Hopkins Book Nook", "lat": 48.469532, "lon": -123.3565367}, {"name": "Hopwood LFL", "lat": 48.4163496, "lon": -123.5059283}, {"name": "Horel Reads", "lat": 48.8190951, "lon": -123.4829906}, {"name": "Houlihan Court LFL", "lat": 48.4848387, "lon": -123.310513}, {"name": "Hovey Road Book Nook", "lat": 48.5867994, "lon": -123.4298193}, {"name": "Hovey Road Little Free Library", "lat": 48.5866947, "lon": -123.4195223}, {"name": "I'm Listening LFL", "lat": 48.424967, "lon": -123.4152873}, {"name": "Inspired by Words LFL", "lat": 48.5696679, "lon": -123.4560241}, {"name": "Isabella Books", "lat": 48.8493331, "lon": -123.2513881}, {"name": "Isabelle Point LFL", "lat": 48.7456368, "lon": -123.4429463}, {"name": "J & D Book Barn", "lat": 48.4560071, "lon": -123.4090355}, {"name": "J & S's Little Library", "lat": 48.4656095, "lon": -123.4155803}, {"name": "Jadel Books", "lat": 48.4307983, "lon": -123.4986994}, {"name": "Jahn Place Book Exchange", "lat": 48.6499471, "lon": -123.4114939}, {"name": "James Bay Boat Ramp Books", "lat": 48.4190101, "lon": -123.3859597}, {"name": "James Heights LFL", "lat": 48.4573381, "lon": -123.3486529}, {"name": "Jasmine LFL", "lat": 48.4669718, "lon": -123.4065303}, {"name": "Jill's Book Exchange", "lat": 48.4214901, "lon": -123.355369}, {"name": "Jill's Little Free Library", "lat": 48.4660496, "lon": -123.4443414}, {"name": "Joanna's Book Exchange", "lat": 48.4512559, "lon": -123.4002615}, {"name": "Joffre St. LFL", "lat": 48.4280475, "lon": -123.4083664}, {"name": "Jubilee Park LFL", "lat": 48.6549007, "lon": -123.4441357}, {"name": "Judge Place Books", "lat": 48.461993, "lon": -123.3511063}, {"name": "Juno St. Lending Box", "lat": 48.427579, "lon": -123.415686}, {"name": "Kathryn's Library Box", "lat": 48.7508196, "lon": -123.1917648}, {"name": "Keira and Amelia Memorial LFL", "lat": 48.4126546, "lon": -123.5189724}, {"name": "Kelly Dawn Book Hut", "lat": 48.4121639, "lon": -123.5137043}, {"name": "Kemp Lake Rd. LFL", "lat": 48.371066, "lon": -123.7937778}, {"name": "Kids and Cats LFL", "lat": 48.4329114, "lon": -123.3441652}, {"name": "Kids Free Little Library", "lat": 48.4327105, "lon": -123.3085966}, {"name": "Kindersley Road", "lat": 48.4391663, "lon": -123.4213382}, {"name": "Kingham LFL", "lat": 48.4585387, "lon": -123.4278414}, {"name": "Kingham Place LFL", "lat": 48.4606002, "lon": -123.4289654}, {"name": "Kings & Dean Books", "lat": 48.4379234, "lon": -123.3249642}, {"name": "Kingsmill Books", "lat": 48.4424294, "lon": -123.4211455}, {"name": "Kings Road", "lat": 48.4378708, "lon": -123.3214259}, {"name": "Kingsley Book House", "lat": 48.4536184, "lon": -123.3318416}, {"name": "Kingsley LFL", "lat": 48.448265, "lon": -123.3317303}, {"name": "Kingswood Books", "lat": 48.4472065, "lon": -123.4816863}, {"name": "Kipling Street", "lat": 48.4153806, "lon": -123.3443534}, {"name": "Kit's Little Library", "lat": 48.492999, "lon": -123.511504}, {"name": "Knockan Place LFL", "lat": 48.4707241, "lon": -123.414498}, {"name": "Kootenay Place LFL", "lat": 48.4624118, "lon": -123.3402416}, {"name": "Ladysmith Street at St Lawrence Street", "lat": 48.4185849, "lon": -123.383503}, {"name": "Lake End LFL", "lat": 48.4532966, "lon": -123.5333805}, {"name": "Lakehurst Dr. LFL", "lat": 48.4587263, "lon": -123.5468918}, {"name": "Lakeside Little Library", "lat": 48.4460249, "lon": -123.5213006}, {"name": "Lambie Library", "lat": 48.4624883, "lon": -123.3995988}, {"name": "Lambrick Park Trail LFL", "lat": 48.4785094, "lon": -123.3243066}, {"name": "Lampson Street LFL (upper)", "lat": 48.4409528, "lon": -123.4013557}, {"name": "Lands End Bus Stop Books", "lat": 48.6955512, "lon": -123.4570097}, {"name": "Laneway Books near Stoba", "lat": 48.4560139, "lon": -123.3606258}, {"name": "Langford Free Book Exchange", "lat": 48.4633171, "lon": -123.5094288}, {"name": "Langford St. LFL", "lat": 48.4343782, "lon": -123.3888147}, {"name": "Langham Court LFL", "lat": 48.4203739, "lon": -123.3494174}, {"name": "Langley Rd. Reads", "lat": 48.8797607, "lon": -123.5696465}, {"name": "Langs Rd. LFL", "lat": 48.8996308, "lon": -123.5381358}, {"name": "Lannon Creek Free Library & Lennon Creek Free Movie Exchange 🎬", "lat": 48.3918881, "lon": -123.6783227}, {"name": "Larkdowne Free Library", "lat": 48.4454396, "lon": -123.3155}, {"name": "Lark St. LFL", "lat": 48.4768687, "lon": -123.3813377}, {"name": "Lavender Avenue", "lat": 48.4642356, "lon": -123.4074819}, {"name": "Layritz LFL", "lat": 48.4870879, "lon": -123.4081639}, {"name": "Lawndale Library", "lat": 48.4213715, "lon": -123.3260615}, {"name": "LDM Memorial Library", "lat": 48.5509364, "lon": -123.4170235}, {"name": "Leeds Place Book Exchange", "lat": 48.4636212, "lon": -123.3628446}, {"name": "Leonard's Book Exchange", "lat": 48.4574203, "lon": -123.4727704}, {"name": "Leonard St. Book Exchange", "lat": 48.4112573, "lon": -123.3548141}, {"name": "Lewis Park LFL", "lat": 48.4132841, "lon": -123.3775422}, {"name": "Lexington Books", "lat": 48.4730745, "lon": -123.3049968}, {"name": "Lexington LFL", "lat": 48.4724272, "lon": -123.3076791}, {"name": "LFL on Jenner", "lat": 48.432268, "lon": -123.4898222}, {"name": "Library Chest - Salt Spring", "lat": 48.8909407, "lon": -123.5759586}, {"name": "Library on Sarah", "lat": 48.3977573, "lon": -123.7512101}, {"name": "Library Lane LFL", "lat": 48.4522592, "lon": -123.3217099}, {"name": "Lie Beary", "lat": 48.5598526, "lon": -123.401461}, {"name": "Lil' Lake Library", "lat": 48.4457167, "lon": -123.5218547}, {"name": "Lily Ave. LFL", "lat": 48.4797437, "lon": -123.3777952}, {"name": "Linden Lending Library", "lat": 48.4184971, "lon": -123.3515934}, {"name": "Linnet Lane", "lat": 48.5185871, "lon": -123.4063339}, {"name": "Little Acorn LFL 🧶🍞", "lat": 48.4712213, "lon": -123.3714921}, {"name": "Little Blue Library", "lat": 48.6414963, "lon": -123.4133177}, {"name": "Little Brookhaven Library", "lat": 48.5379798, "lon": -123.4205022}, {"name": "Little Broom Hill LFL", "lat": 48.3778123, "lon": -123.7449949}, {"name": "Little Butter's Library", "lat": 48.4150145, "lon": -123.3778152}, {"name": "Little Debbie's Free Library", "lat": 48.4174013, "lon": -123.3049287}, {"name": "Little Dragon LFL", "lat": 48.4536525, "lon": -123.3558087}, {"name": "Little Duchess Library", "lat": 48.4292689, "lon": -123.3278876}, {"name": "Little Eldon LFL", "lat": 48.4495345, "lon": -123.3817464}, {"name": "Little Free Children's Library", "lat": 48.5179086, "lon": -123.3771658}, {"name": "Little Free Children's Library on Clarke", "lat": 48.5758624, "lon": -123.4535048}, {"name": "Little Free Food Pantry", "lat": 48.4406605, "lon": -123.329167}, {"name": "Little Free Library", "lat": 48.4477721, "lon": -123.3922247}, {"name": "Little Free Library, Est. 2020", "lat": 48.4391384, "lon": -123.3533993}, {"name": "Little Free Library on Linklease", "lat": 48.4173575, "lon": -123.3046626}, {"name": "Little Free Pantry on Leigh", "lat": 48.4477842, "lon": -123.5193035}, {"name": "Little Happy Duck LFL", "lat": 48.4696207, "lon": -123.3245187}, {"name": "Little House Books on Rockland", "lat": 48.4200721, "lon": -123.3419507}, {"name": "Little House of Books", "lat": 48.4835517, "lon": -123.3410728}, {"name": "Little Library on Ayton", "lat": 48.4344512, "lon": -123.5189182}, {"name": "Little House on Graham", "lat": 48.4367623, "lon": -123.3549109}, {"name": "Little Library on Cornwall", "lat": 48.4170481, "lon": -123.3495568}, {"name": "Little Lincoln Library", "lat": 48.4375181, "lon": -123.3034903}, {"name": "Little Loretta Library", "lat": 48.4617719, "lon": -123.3940808}, {"name": "Little Maple Library", "lat": 48.3713445, "lon": -123.7326609}, {"name": "Little Mountain Book Barn", "lat": 48.8547352, "lon": -123.4559991}, {"name": "Little Owl LFL", "lat": 48.4195054, "lon": -123.3526608}, {"name": "Little Pink Book House", "lat": 48.4522042, "lon": -123.413075}, {"name": "Little Pink Library on Stamboul", "lat": 48.4651999, "lon": -123.3302964}, {"name": "Lizard Library", "lat": 48.6212366, "lon": -123.42901}, {"name": "Local Pup Snack Shop 🐶", "lat": 48.428426, "lon": -123.5317767}, {"name": "Lochside Book House", "lat": 48.5010187, "lon": -123.3612471}, {"name": "Lochside Trail", "lat": 48.4889922, "lon": -123.3603743}, {"name": "Lockehaven Books", "lat": 48.4620707, "lon": -123.281253}, {"name": "Lockley Free Library", "lat": 48.4368834, "lon": -123.4156448}, {"name": "Logan Library", "lat": 48.4467739, "lon": -123.3893687}, {"name": "Lone Oak Library", "lat": 48.4602487, "lon": -123.4873734}, {"name": "Long Harbour Terminal LFL", "lat": 48.8516681, "lon": -123.4457782}, {"name": "Longview Books", "lat": 48.4768759, "lon": -123.3133195}, {"name": "Longview LFL", "lat": 48.4780414, "lon": -123.3131834}, {"name": "Lookout's LFL", "lat": 48.4293422, "lon": -123.4265522}, {"name": "Lorne Kelsey Memorial Library", "lat": 48.4349626, "lon": -123.3424761}, {"name": "Lorra's Little Free Library", "lat": 48.4250215, "lon": -123.3246768}, {"name": "Ludlow Road Free Library", "lat": 48.3951472, "lon": -123.659434}, {"name": "Lucas Ave. LFL", "lat": 48.4793338, "lon": -123.3666576}, {"name": "Luna and Soleil's Library", "lat": 48.4420061, "lon": -123.3261845}, {"name": "Luranah's Library", "lat": 48.535038, "lon": -123.4468226}, {"name": "Lurline Books", "lat": 48.4544243, "lon": -123.3867986}, {"name": "Lynnfield LFL", "lat": 48.4791188, "lon": -123.3416333}, {"name": "Macaulay St LFL", "lat": 48.4279333, "lon": -123.4038985}, {"name": "MacDonald Dr. LFL", "lat": 48.4655888, "lon": -123.2892343}, {"name": "MacKinnon Books", "lat": 48.8047887, "lon": -123.3223277}, {"name": "Maddock Ave E", "lat": 48.4469061, "lon": -123.3858365}, {"name": "Maddison Reads", "lat": 48.4232178, "lon": -123.326354}, {"name": "Madrona Book and Toy Box", "lat": 48.678865, "lon": -123.4771719}, {"name": "Madrona Free Box 🍽", "lat": 48.6790209, "lon": -123.4827955}, {"name": "Madrona LFL", "lat": 48.6788792, "lon": -123.4802909}, {"name": "Magic Dragon Book Stop", "lat": 48.4203786, "lon": -123.4842559}, {"name": "Mainwaring Books and Things", "lat": 48.6262528, "lon": -123.4155811}, {"name": "Malaview Book Exchange", "lat": 48.6569995, "lon": -123.3986463}, {"name": "Malaview Free Library", "lat": 48.6571974, "lon": -123.4014167}, {"name": "Maliview Books", "lat": 48.9019755, "lon": -123.5309266}, {"name": "Malton Books", "lat": 48.4744845, "lon": -123.3440874}, {"name": "Mama's Book Exchange", "lat": 48.4119541, "lon": -123.322754}, {"name": "Mamich LFL", "lat": 48.4814229, "lon": -123.3244127}, {"name": "Manchester Rd. Blvd. Park Books", "lat": 48.4425442, "lon": -123.3725811}, {"name": "Mann Ave. LFL", "lat": 48.4881214, "lon": -123.3931936}, {"name": "Maplewood Green LFL", "lat": 48.4506106, "lon": -123.3512307}, {"name": "Marie Meadows LFL", "lat": 48.5521236, "lon": -123.3953594}, {"name": "Margot Place Yarn Barn 🧶", "lat": 48.4685477, "lon": -123.3519709}, {"name": "Margate LFL", "lat": 48.4204936, "lon": -123.3040695}, {"name": "Marigold Books", "lat": 48.4682435, "lon": -123.3998209}, {"name": "Marifield Ave", "lat": 48.4145474, "lon": -123.3685255}, {"name": "Marler Park Books", "lat": 48.4640002, "lon": -123.45473}, {"name": "Marley and Me LFL", "lat": 48.4314425, "lon": -123.524487}, {"name": "Mars St. LFL", "lat": 48.4485138, "lon": -123.3542249}, {"name": "Mary Baker Eddy LFL", "lat": 48.4267222, "lon": -123.3503578}, {"name": "Maryland Reads 🐶", "lat": 48.639606, "lon": -123.4054367}, {"name": "Mason St. LFL", "lat": 48.4275489, "lon": -123.3509302}, {"name": "Maynard and Cadboro Bay Road", "lat": 48.4620053, "lon": -123.2939816}, {"name": "Maynard Park LFL", "lat": 48.4630778, "lon": -123.2966665}, {"name": "Maywood LFL", "lat": 48.4512339, "lon": -123.3549303}, {"name": "McLaren LFL", "lat": 48.4154544, "lon": -123.3187027}, {"name": "McTavish LFL", "lat": 48.6304622, "lon": -123.4280969}, {"name": "Meadow Dr LFL", "lat": 48.743571, "lon": -123.4524306}, {"name": "Meadow Farm Stand", "lat": 48.9016631, "lon": -123.5305695}, {"name": "Meadow Library", "lat": 48.4261707, "lon": -123.413124}, {"name": "Meadow Park Books", "lat": 48.4105553, "lon": -123.4881251}, {"name": "Merry Reads", "lat": 48.4641298, "lon": -123.2900686}, {"name": "Metchosin Schoolhouse Museum LFL", "lat": 48.3800241, "lon": -123.5318631}, {"name": "Michele's Little Library", "lat": 48.4097092, "lon": -123.3510253}, {"name": "Miller Lending Library🪁", "lat": 48.490779, "lon": -123.4004998}, {"name": "Mills Rd. LFL", "lat": 48.6554792, "lon": -123.4062887}, {"name": "Mini Myrtle Book Nook", "lat": 48.4416752, "lon": -123.3407085}, {"name": "Mister Calvin", "lat": 48.4364693, "lon": -123.3063027}, {"name": "Monarch Community Library", "lat": 48.4713404, "lon": -123.2947153}, {"name": "Montague Rd. LFL", "lat": 48.8822778, "lon": -123.3580536}, {"name": "Monkey Puzzle Books", "lat": 48.4130082, "lon": -123.3707436}, {"name": "Moodyville Book Exchange on Stellys Cross Road", "lat": 48.5796061, "lon": -123.4675634}, {"name": "Moon Library", "lat": 48.4474104, "lon": -123.3801355}, {"name": "Moorpark and Lodi LFL", "lat": 48.4860713, "lon": -123.3936524}, {"name": "Mosher  Books", "lat": 48.4363202, "lon": -123.4929698}, {"name": "Moss Rock's Little Library", "lat": 48.411059, "lon": -123.3478107}, {"name": "Mossy Books", "lat": 48.4104726, "lon": -123.3498017}, {"name": "Moss Point Books", "lat": 48.4066936, "lon": -123.3510505}, {"name": "Moss St. Books", "lat": 48.4164122, "lon": -123.3486671}, {"name": "Most Majestic LFL", "lat": 48.4921817, "lon": -123.3289251}, {"name": "Mount Stephen LFL", "lat": 48.4393971, "lon": -123.3479808}, {"name": "Mount Tolmie Neighbourhood Library", "lat": 48.4539831, "lon": -123.3225739}, {"name": "Mountjoy LFL", "lat": 48.4171324, "lon": -123.3218328}, {"name": "Moxon Terrace Lil' Library", "lat": 48.6122853, "lon": -123.4101534}, {"name": "My Library on Central Saanich Rd.", "lat": 48.5751377, "lon": -123.4037161}, {"name": "Mt. Newton Book Barn", "lat": 48.5967953, "lon": -123.424364}, {"name": "Munro Street", "lat": 48.4216538, "lon": -123.4103895}, {"name": "Musgrave LFL", "lat": 48.4359703, "lon": -123.3095706}, {"name": "Mutti Bird on Chambers Street", "lat": 48.4300584, "lon": -123.3499485}, {"name": "My Neighbour Library", "lat": 48.4457071, "lon": -123.3847947}, {"name": "Nancy's Little Library", "lat": 48.4612792, "lon": -123.3234492}, {"name": "Neighbourhood Book Box on Austin Ave", "lat": 48.4520192, "lon": -123.4107221}, {"name": "Neighbourhood Book Nook and Kids Stop 🍽", "lat": 48.6351869, "lon": -123.4160496}, {"name": "Neptune's LFL", "lat": 48.6888229, "lon": -123.4160696}, {"name": "NerdYurt Library", "lat": 48.448847, "lon": -123.4966774}, {"name": "Newton Place Novels", "lat": 48.5703507, "lon": -123.4523021}, {"name": "Niagara Grocery Book and Fibre Library 🧶", "lat": 48.4121204, "lon": -123.3724677}, {"name": "Niagara St. Book House", "lat": 48.4146537, "lon": -123.3773952}, {"name": "Nicholson Free Little Library", "lat": 48.4757183, "lon": -123.3635997}, {"name": "Nik-Nak-Nook", "lat": 48.4465272, "lon": -123.3449492}, {"name": "Nook's Cranny", "lat": 48.4800516, "lon": -123.3856022}, {"name": "Norris Road Little Library", "lat": 48.6719166, "lon": -123.4740814}, {"name": "Northlawn LFL", "lat": 48.6428675, "lon": -123.4041619}, {"name": "North Park Book Shelf", "lat": 48.4295767, "lon": -123.3510512}, {"name": "North Ridge LFL", "lat": 48.6278236, "lon": -123.4576575}, {"name": "Oak Bay Ave LFL", "lat": 48.4265936, "lon": -123.3271043}, {"name": "Oakcrest Library", "lat": 48.4525693, "lon": -123.3399}, {"name": "Oakdowne Books", "lat": 48.4433282, "lon": -123.3164421}, {"name": "Oak Grove Library", "lat": 48.4960991, "lon": -123.3916601}, {"name": "Oaklands Community Centre LFL", "lat": 48.4409941, "lon": -123.3385028}, {"name": "Oaklands Rise LFL", "lat": 48.438374, "lon": -123.3477627}, {"name": "Oakmount Books", "lat": 48.4529929, "lon": -123.3490459}, {"name": "Oakmount Road", "lat": 48.4522611, "lon": -123.3520782}, {"name": "Oakridge Exchange 🍽", "lat": 48.4790498, "lon": -123.3987271}, {"name": "Obed Ave at Qu'Appelle Street", "lat": 48.4464542, "lon": -123.3908308}, {"name": "Ocean Blvd Little Free Pantry 🍞", "lat": 48.4441737, "lon": -123.4673162}, {"name": "Ocean Dreams LFL", "lat": 48.4199788, "lon": -123.5369462}, {"name": "Oceanspray Books", "lat": 48.6932936, "lon": -123.4380181}, {"name": "OceanView LFL - St. Catherine St.", "lat": 48.4307465, "lon": -123.3845904}, {"name": "Old Esquimalt Neighbourhood Book Box", "lat": 48.4319606, "lon": -123.4088909}, {"name": "Old Scott LFL", "lat": 48.8462781, "lon": -123.4486589}, {"name": "Old West Saanich Road Books", "lat": 48.5111443, "lon": -123.411849}, {"name": "Olive Street Library", "lat": 48.4104312, "lon": -123.3486986}, {"name": "Once Upon A Library", "lat": 48.4603488, "lon": -123.3887139}, {"name": "On The Edgelow LFL", "lat": 48.471723, "lon": -123.3098463}, {"name": "Orca LFL", "lat": 48.341171, "lon": -123.5620121}, {"name": "Orchard Little Library", "lat": 48.6455378, "lon": -123.397288}, {"name": "Orillia St. Pollinator Box", "lat": 48.4498603, "lon": -123.3948591}, {"name": "Otter Point LFL", "lat": 48.3693737, "lon": -123.8343729}, {"name": "Otter Point Rd. Books", "lat": 48.3946719, "lon": -123.7767593}, {"name": "Our Little Free Library", "lat": 48.4468375, "lon": -123.3192795}, {"name": "Over Booked LFL", "lat": 48.4575058, "lon": -123.4400796}, {"name": "Paddon Ave. Books", "lat": 48.4106686, "lon": -123.3711772}, {"name": "Paddon Book Box", "lat": 48.4102519, "lon": -123.3716073}, {"name": "Pages and Petals", "lat": 48.4918401, "lon": -123.3324379}, {"name": "Panorama Recreation Centre", "lat": 48.6242433, "lon": -123.4193587}, {"name": "Park Book Exchange - Central Saanich Rd.", "lat": 48.5913342, "lon": -123.4028685}, {"name": "Parker Ave. LFL", "lat": 48.5363677, "lon": -123.3659648}, {"name": "Parker Island LFL", "lat": 48.8910914, "lon": -123.4138663}, {"name": "Parkside Books on Tillicum", "lat": 48.4567003, "lon": -123.3927441}, {"name": "Park Ridge Books", "lat": 48.4667199, "lon": -123.4578441}, {"name": "Park Terrace Books", "lat": 48.4307205, "lon": -123.4142975}, {"name": "Patagonia Victoria's LFL", "lat": 48.4266845, "lon": -123.3666753}, {"name": "Peak-A-Book", "lat": 48.6582682, "lon": -123.3988153}, {"name": "Patterson Rd. LFL", "lat": 48.5974144, "lon": -123.4135835}, {"name": "Pearce Crescent LFL", "lat": 48.4952434, "lon": -123.3549588}, {"name": "Pearl St. LFL", "lat": 48.4418646, "lon": -123.3364289}, {"name": "Pearls of Wisdom LFL", "lat": 48.4418717, "lon": -123.3380122}, {"name": "Paul's Terrace LFL", "lat": 48.4879718, "lon": -123.3057643}, {"name": "Pembooks", "lat": 48.4315794, "lon": -123.3489567}, {"name": "Pembroke Street Book Exchange", "lat": 48.4320054, "lon": -123.3518958}, {"name": "Pembroke Street Little Library", "lat": 48.4312936, "lon": -123.3439457}, {"name": "Penshurst Books", "lat": 48.482236, "lon": -123.3163449}, {"name": "Pequod LFL", "lat": 48.663559, "lon": -123.4122421}, {"name": "Petite Bibliothèque Gratuite \nFrançais", "lat": 48.4262187, "lon": -123.3687112}, {"name": "Persimmon Library", "lat": 48.4625191, "lon": -123.3492014}, {"name": "Pet's Book Cabinet", "lat": 48.4488553, "lon": -123.3411584}, {"name": "Phoenix Books", "lat": 48.8506313, "lon": -123.5061777}, {"name": "Phoenix Library", "lat": 48.8821345, "lon": -123.3220093}, {"name": "Pickford Books", "lat": 48.4413118, "lon": -123.4968326}, {"name": "Pine St. LFL", "lat": 48.4367984, "lon": -123.3905219}, {"name": "Pink Geranium LFL", "lat": 48.9671244, "lon": -123.5538841}, {"name": "Pioneer Housing Co-Op LFL", "lat": 48.4347796, "lon": -123.3927084}, {"name": "Pioneer Park Children's and Youth LFL", "lat": 48.5761225, "lon": -123.447395}, {"name": "Play On LFL", "lat": 48.4097809, "lon": -123.372534}, {"name": "Pocket Books", "lat": 48.4263495, "lon": -123.3371747}, {"name": "Pleased Pebble Books", "lat": 48.4304683, "lon": -123.3408496}, {"name": "Poet District Book Nook", "lat": 48.4487942, "lon": -123.3357242}, {"name": "Poetree", "lat": 48.4403325, "lon": -123.3578456}, {"name": "Porlier Pass Books", "lat": 48.9984874, "lon": -123.5857515}, {"name": "Prima Strada LFL on Cook", "lat": 48.4140276, "lon": -123.3570349}, {"name": "Prima Strada LFL on Fort", "lat": 48.4322096, "lon": -123.3228384}, {"name": "Princess Books", "lat": 48.4332155, "lon": -123.3601248}, {"name": "Princess Avenue LFL", "lat": 48.4327165, "lon": -123.3534268}, {"name": "Prior Street LFL", "lat": 48.4364312, "lon": -123.3537183}, {"name": "Promenade Books", "lat": 48.4092887, "lon": -123.4957094}, {"name": "Promontory LFL", "lat": 48.4286892, "lon": -123.3794195}, {"name": "Prospect Lake Community LFL", "lat": 48.5268537, "lon": -123.4310885}, {"name": "Proudfoot Place", "lat": 48.4078673, "lon": -123.4956622}, {"name": "Public Library Camosun Street Branch", "lat": 48.4284459, "lon": -123.3466601}, {"name": "Purple Book Box on Grenville", "lat": 48.4311156, "lon": -123.4158508}, {"name": "Put A Bird On It", "lat": 48.5228887, "lon": -123.3781002}, {"name": "Quebec Dr LFL", "lat": 48.8541464, "lon": -123.4679883}, {"name": "Queensbury Little Library", "lat": 48.460845, "lon": -123.3499419}, {"name": "Quimper St LFL", "lat": 48.4086767, "lon": -123.3227746}, {"name": "Quincy's Library", "lat": 48.4283694, "lon": -123.3155277}, {"name": "Rainbow Orca Books", "lat": 48.4295666, "lon": -123.3980998}, {"name": "Rainbow Roads Reads", "lat": 48.8586708, "lon": -123.5359064}, {"name": "Rambler Reads", "lat": 48.5334604, "lon": -123.376771}, {"name": "Ramsay Reads", "lat": 48.482947, "lon": -123.325067}, {"name": "Ravens Crossing Cohousing Books", "lat": 48.6522128, "lon": -123.4031001}, {"name": "Raven Roost LFL", "lat": 48.4484244, "lon": -123.3584784}, {"name": "Raven Sisters LFL", "lat": 48.5022628, "lon": -123.4642577}, {"name": "Raynor Ave. LFL", "lat": 48.4366537, "lon": -123.3850157}, {"name": "Read It Again", "lat": 48.4184303, "lon": -123.3177634}, {"name": "Reads and Seeds", "lat": 48.4341226, "lon": -123.3073319}, {"name": "Reads on Reed", "lat": 48.4469536, "lon": -123.3643691}, {"name": "Redfern Park Reads", "lat": 48.4286489, "lon": -123.3248699}, {"name": "Renart Reads", "lat": 48.4667731, "lon": -123.4884245}, {"name": "Reno Dog Box 🐶", "lat": 48.4375938, "lon": -123.3921289}, {"name": "Reynolds Rd. LFL", "lat": 48.7766325, "lon": -123.4331437}, {"name": "Rhubarbs Book House", "lat": 48.4392516, "lon": -123.3548261}, {"name": "Richardson Street Little Free Library", "lat": 48.4169543, "lon": -123.3342469}, {"name": "Richardson Reads", "lat": 48.416271, "lon": -123.3357409}, {"name": "Richmond Ave", "lat": 48.4149533, "lon": -123.330524}, {"name": "Ridge Pond Little Library", "lat": 48.40826, "lon": -123.5350976}, {"name": "Ridgeway Community Library", "lat": 48.4671483, "lon": -123.366862}, {"name": "Ridgewood Reads", "lat": 48.48654, "lon": -123.3994873}, {"name": "Rithet St. LFL", "lat": 48.4124247, "lon": -123.3754816}, {"name": "Rithetwood Books", "lat": 48.4979776, "lon": -123.3640938}, {"name": "Rivers Crossing", "lat": 48.4755108, "lon": -123.52235}, {"name": "Riverstone Book Nook", "lat": 48.3982506, "lon": -123.717182}, {"name": "Robert St. LFL", "lat": 48.4295311, "lon": -123.3887104}, {"name": "Roberlack Reads", "lat": 48.4193086, "lon": -123.4919492}, {"name": "Robin's Branch Library", "lat": 48.4502693, "lon": -123.3494049}, {"name": "Robinson Rd. Books Etc.", "lat": 48.8699551, "lon": -123.501089}, {"name": "Robin Way LFL", "lat": 48.5526501, "lon": -123.3988059}, {"name": "Rockheights Ave", "lat": 48.4358316, "lon": -123.4080077}, {"name": "Rockland Reads", "lat": 48.4205259, "lon": -123.3462261}, {"name": "Rockwell Reads", "lat": 48.4542054, "lon": -123.4171915}, {"name": "Rocky Point LFL", "lat": 48.3488468, "lon": -123.5785246}, {"name": "Rocky Point Rd LFL", "lat": 48.3566262, "lon": -123.5807596}, {"name": "Rogers Ave", "lat": 48.4762145, "lon": -123.3803594}, {"name": "Rolston Trail Reads", "lat": 48.4999418, "lon": -123.3648025}, {"name": "Romney Road", "lat": 48.4176948, "lon": -123.324666}, {"name": "Rosario Reads", "lat": 48.4178035, "lon": -123.3107806}, {"name": "Rose Garden Children's Book Exchange", "lat": 48.4536308, "lon": -123.4458745}, {"name": "Roseberry Ave and Kings Road", "lat": 48.4378388, "lon": -123.3434415}, {"name": "Roslyn Reads on Roslyn Road", "lat": 48.4234196, "lon": -123.3169842}, {"name": "Rothesay Reads", "lat": 48.6550657, "lon": -123.3970453}, {"name": "Roundabout Reads", "lat": 48.4325401, "lon": -123.3353989}, {"name": "Rowan Street Reads", "lat": 48.4572529, "lon": -123.3367294}, {"name": "Royal Bay Books & Puzzles & Games", "lat": 48.4108698, "lon": -123.4964539}, {"name": "Royal Links LFL", "lat": 48.504218, "lon": -123.3899899}, {"name": "Royal Oak Avenue - Community Book Case", "lat": 48.494668, "lon": -123.3829451}, {"name": "Royal Oak Reads", "lat": 48.4973592, "lon": -123.3755937}, {"name": "Roy Reads", "lat": 48.4790372, "lon": -123.4048567}, {"name": "Roy Road Reads", "lat": 48.4805646, "lon": -123.41184}, {"name": "Ruby's Cute Little Library", "lat": 48.4154447, "lon": -123.3727849}, {"name": "Ruby's Little Free Pantry 🍞", "lat": 48.4514499, "lon": -123.3671951}, {"name": "Runnymede Reads", "lat": 48.4194616, "lon": -123.324538}, {"name": "Rupert Terrace LFL", "lat": 48.4209916, "lon": -123.3606076}, {"name": "Russell St. Books", "lat": 48.4318148, "lon": -123.3872195}, {"name": "Russell in the Bush Reads", "lat": 48.430165, "lon": -123.3872598}, {"name": "Rutledge Park Lending Library", "lat": 48.4516634, "lon": -123.3634132}, {"name": "Ryan Street Reads", "lat": 48.4401795, "lon": -123.3346883}, {"name": "Ryder Reads", "lat": 48.4121499, "lon": -123.4925715}, {"name": "Saanich Commonwealth Place LFL", "lat": 48.5012682, "lon": -123.3887345}, {"name": "Saanich Heritage Artifacts Society Book Box", "lat": 48.5785321, "lon": -123.3971523}, {"name": "S & C Little Free Library", "lat": 48.4786046, "lon": -123.4119717}, {"name": "Sabrina's Book Nook on Regina Ave", "lat": 48.4544954, "lon": -123.382237}, {"name": "Salton Book Box", "lat": 48.4178886, "lon": -123.4966023}, {"name": "Salt Spring Rustics Reads", "lat": 48.9096948, "lon": -123.5231508}, {"name": "Salt Spring Vineyards LFL", "lat": 48.7955923, "lon": -123.4952265}, {"name": "Sandgate Library", "lat": 48.3539306, "lon": -123.547051}, {"name": "San Lorenzo Books", "lat": 48.4768078, "lon": -123.3168503}, {"name": "Santa Fe Books", "lat": 48.4855404, "lon": -123.3292759}, {"name": "Saunders LFL", "lat": 48.5780733, "lon": -123.4667125}, {"name": "Schooner's Books", "lat": 48.7640688, "lon": -123.2806761}, {"name": "Scott St. LFL", "lat": 48.4379848, "lon": -123.3351481}, {"name": "School House Reads on Epsom", "lat": 48.4629095, "lon": -123.3441089}, {"name": "Scott St Books", "lat": 48.4409171, "lon": -123.3350059}, {"name": "Sea Ridge LFL", "lat": 48.5116736, "lon": -123.3706511}, {"name": "Sea View Books", "lat": 48.4510733, "lon": -123.2777955}, {"name": "Seawalk Co-op LFL", "lat": 48.429777, "lon": -123.387297}, {"name": "Secret Quiver Library", "lat": 48.4718092, "lon": -123.3397926}, {"name": "Sedum Read'um", "lat": 48.4436699, "lon": -123.3096342}, {"name": "Seedlings Forest Education LFL", "lat": 48.4306087, "lon": -123.3444336}, {"name": "Selkirk LFL", "lat": 48.441001, "lon": -123.3929468}, {"name": "Setting Sun LFL on Glenelg", "lat": 48.6401616, "lon": -123.4703958}, {"name": "Shady Corner Books", "lat": 48.6141606, "lon": -123.4161149}, {"name": "Shakespear Books", "lat": 48.4351482, "lon": -123.3363792}, {"name": "Sharky & George's LFL", "lat": 48.4127002, "lon": -123.3413552}, {"name": "Sharp Rd. LFL", "lat": 48.8612015, "lon": -123.5221648}, {"name": "Shelagh Rogers Lending Library", "lat": 48.4614916, "lon": -123.313704}, {"name": "Shelagh Rogers Lending Library II", "lat": 48.468017, "lon": -123.3055438}, {"name": "Shelage Rogers Lending Library III", "lat": 48.4633661, "lon": -123.3161662}, {"name": "Sheryl's Little Library", "lat": 48.4386538, "lon": -123.3182716}, {"name": "Shine Craft LFL", "lat": 48.8070853, "lon": -123.4695239}, {"name": "Shirley Delicious - Little Free Book Lighthouse", "lat": 48.3890047, "lon": -123.9057398}, {"name": "Shirley's Book Nook", "lat": 48.48194, "lon": -123.3403111}, {"name": "Shore Way Books", "lat": 48.4873884, "lon": -123.3033622}, {"name": "Sidney Guide & Scout Hall Little Free Library", "lat": 48.6474523, "lon": -123.3979674}, {"name": "Siddall Reads", "lat": 48.6552205, "lon": -123.4084963}, {"name": "Sigmar Book Exchange", "lat": 48.5893213, "lon": -123.4230515}, {"name": "Silverstone Way LFL", "lat": 48.4511937, "lon": -123.4771657}, {"name": "Simcoe LFL", "lat": 48.4195405, "lon": -123.3830936}, {"name": "Sinclair LFL", "lat": 48.4616531, "lon": -123.2985198}, {"name": "Six Mile Pub LFL", "lat": 48.4567139, "lon": -123.4591603}, {"name": "Skedans Take A Book - Leave A Book", "lat": 48.4587357, "lon": -123.4961462}, {"name": "Slater St. LFL", "lat": 48.4492162, "lon": -123.3509771}, {"name": "Sloan Reads", "lat": 48.5038351, "lon": -123.3622902}, {"name": "Slow the Folk Down and Read", "lat": 48.4343973, "lon": -123.3147244}, {"name": "Sluggett Books", "lat": 48.5703282, "lon": -123.4410209}, {"name": "Smokey LFL", "lat": 48.4194119, "lon": -123.5281628}, {"name": "Snoopy LFL", "lat": 48.4189436, "lon": -123.3495808}, {"name": "Snowdrop Ave", "lat": 48.4651605, "lon": -123.4044564}, {"name": "Snowy's Books", "lat": 48.3740358, "lon": -123.7302115}, {"name": "So Long Mary Anne Books", "lat": 48.4230829, "lon": -123.5018281}, {"name": "Somerset LFL", "lat": 48.4489197, "lon": -123.3573491}, {"name": "Songhee's Wellness Centre LFL", "lat": 48.4415281, "lon": -123.4287325}, {"name": "Sooke Children's LFL", "lat": 48.3986277, "lon": -123.710361}, {"name": "Sooke Reads LFL - Seaparc Leisure Complex - Adult Books", "lat": 48.3859552, "lon": -123.7078571}, {"name": "Sooke Reads LFL - Seaparc Leisure Complex - Children's Books", "lat": 48.3859908, "lon": -123.7080825}, {"name": "Songhees Retirement Park LFL", "lat": 48.4455521, "lon": -123.4263618}, {"name": "Southpoint-Island Life LFL", "lat": 48.4584449, "lon": -123.5178263}, {"name": "Spring Bay Book Beacon", "lat": 48.4547984, "lon": -123.2676605}, {"name": "Spirit Garden Library", "lat": 48.4379954, "lon": -123.3290434}, {"name": "Stand Out of the Way", "lat": 48.8412965, "lon": -123.5020043}, {"name": "Stark's LFL", "lat": 48.8853621, "lon": -123.5175933}, {"name": "Starry Night Books", "lat": 48.4320909, "lon": -123.3065496}, {"name": "St. Andrews Street LFL", "lat": 48.4125869, "lon": -123.3699033}, {"name": "St. Barnabas Book Box", "lat": 48.4283239, "lon": -123.3384389}, {"name": "St. Charles St. LFL", "lat": 48.4118859, "lon": -123.3364372}, {"name": "St. Christopher’s Montessori LFL", "lat": 48.4223863, "lon": -123.3047062}, {"name": "Stelly St. Reads", "lat": 48.4311409, "lon": -123.3487878}, {"name": "St. Lawrence St. LFL", "lat": 48.4192977, "lon": -123.3841326}, {"name": "St. Matthias LFL", "lat": 48.4175955, "lon": -123.3320405}, {"name": "Stoba Books", "lat": 48.4565458, "lon": -123.3606704}, {"name": "St Patrick Street", "lat": 48.4157581, "lon": -123.3115554}, {"name": "Stitch Up Reads", "lat": 48.4384728, "lon": -123.3213642}, {"name": "Stockton LFL", "lat": 48.4662553, "lon": -123.3340975}, {"name": "Stonington Place LFL", "lat": 48.506597, "lon": -123.360436}, {"name": "Stormont Books", "lat": 48.4537498, "lon": -123.4376282}, {"name": "Styles St. Libretto", "lat": 48.4388022, "lon": -123.388618}, {"name": "Sunkist LFLs", "lat": 48.4641105, "lon": -123.4899451}, {"name": "Superior Books", "lat": 48.4192292, "lon": -123.3757825}, {"name": "Surf the Free Library", "lat": 48.7508533, "lon": -123.2154255}, {"name": "Sutherland Books", "lat": 48.4213366, "lon": -123.3196287}, {"name": "Swartz Bay LFL", "lat": 48.6891987, "lon": -123.4111458}, {"name": "Tall Tree Books", "lat": 48.4677515, "lon": -123.417529}, {"name": "Tatlow Free Library", "lat": 48.6772904, "lon": -123.4357081}, {"name": "Tat Tvam Asi LFL", "lat": 48.4314644, "lon": -123.3496535}, {"name": "Telle's Tales", "lat": 48.4614133, "lon": -123.2866242}, {"name": "Terrace Books", "lat": 48.4249627, "lon": -123.334831}, {"name": "Texada Terrace LFL", "lat": 48.6270444, "lon": -123.4279954}, {"name": "That Little Blue Library", "lat": 48.4975619, "lon": -123.3923211}, {"name": "The Art of Reading", "lat": 48.4519217, "lon": -123.3353825}, {"name": "The Bird Box", "lat": 48.4363618, "lon": -123.4121382}, {"name": "The Birdhouse Library", "lat": 48.6385778, "lon": -123.4089606}, {"name": "The Bookaneer", "lat": 48.4284937, "lon": -123.4069854}, {"name": "The Book Box at Mt View Park", "lat": 48.4587574, "lon": -123.3831489}, {"name": "The Book Case - on Eaton Ave.", "lat": 48.4661191, "lon": -123.4233943}, {"name": "The Book House on Northcott Ave", "lat": 48.4397001, "lon": -123.3910775}, {"name": "The Book Nook", "lat": 48.5654106, "lon": -123.4326924}, {"name": "The Book Shack & More", "lat": 48.4316903, "lon": -123.5147259}, {"name": "The Clawthrope Lending Library", "lat": 48.4466865, "lon": -123.3437622}, {"name": "The Charming Dandelion LFL", "lat": 48.4568123, "lon": -123.4940335}, {"name": "The Doctor's Little Library", "lat": 48.4576946, "lon": -123.3410027}, {"name": "The Garlock Library", "lat": 48.4591103, "lon": -123.2764107}, {"name": "The Hamster House Kids LFL", "lat": 48.428574, "lon": -123.3460746}, {"name": "The Hawthorne LFL", "lat": 48.421367, "lon": -123.5300108}, {"name": "The Heights of Reading LFL", "lat": 48.4648676, "lon": -123.4511139}, {"name": "Theh Le Lum LFL", "lat": 48.621057, "lon": -123.464609}, {"name": "The Kingsberry LFL", "lat": 48.458469, "lon": -123.3288595}, {"name": "The Lake Library", "lat": 48.3869433, "lon": -123.7272114}, {"name": "The Lane Library", "lat": 48.4108467, "lon": -123.3370085}, {"name": "The Library of 1812", "lat": 48.43149, "lon": -123.3119622}, {"name": "The Lighthouse Library", "lat": 48.4603813, "lon": -123.3628989}, {"name": "The Little Blue Library", "lat": 48.4245411, "lon": -123.5287707}, {"name": "The Little Italian Library", "lat": 48.42325, "lon": -123.3187193}, {"name": "The Little Monterey Trading Library", "lat": 48.4231469, "lon": -123.3143394}, {"name": "The Little Pantry", "lat": 48.3930879, "lon": -123.7016353}, {"name": "The Little QBIPOC Library", "lat": 48.4259028, "lon": -123.412932}, {"name": "The Little Unlearning LFL YYJ", "lat": 48.4673302, "lon": -123.3422659}, {"name": "The Little Yellow House LFL", "lat": 48.4312198, "lon": -123.3414471}, {"name": "The Little Yellow Book Box", "lat": 48.4404945, "lon": -123.3350493}, {"name": "The Maison d'Être Little Library", "lat": 48.4365002, "lon": -123.3424544}, {"name": "The Mayer Zoo LFL", "lat": 48.5139108, "lon": -123.3739757}, {"name": "The Most Majestic LFL", "lat": 48.4871148, "lon": -123.3316191}, {"name": "The Oakridge Oracle", "lat": 48.4803651, "lon": -123.3986278}, {"name": "The Owl Perch LFL", "lat": 48.4642565, "lon": -123.4092939}, {"name": "The Piper's Books", "lat": 48.9109077, "lon": -123.5245563}, {"name": "The Poetree", "lat": 48.4380168, "lon": -123.3437281}, {"name": "The Red Book Box and Friends", "lat": 48.4655329, "lon": -123.341456}, {"name": "The Sentinel Box", "lat": 48.9390667, "lon": -123.4926908}, {"name": "The Stand on Tern", "lat": 48.8897739, "lon": -123.5610569}, {"name": "The Street Library on Sutlej", "lat": 48.4143979, "lon": -123.3568656}, {"name": "The Toadstool", "lat": 48.446495, "lon": -123.3393126}, {"name": "The Tree of Knowledge", "lat": 48.4175195, "lon": -123.3599853}, {"name": "The Village Exchange", "lat": 48.5882475, "lon": -123.399131}, {"name": "The Yarn Shed 🧶", "lat": 48.4156466, "lon": -123.4828982}, {"name": "Thought Spot", "lat": 48.6301313, "lon": -123.4778556}, {"name": "Threshold Housing Society LFL", "lat": 48.4113306, "lon": -123.3704121}, {"name": "Thurlow Rd. LFL", "lat": 48.4122767, "lon": -123.3426828}, {"name": "Thurlow Reads", "lat": 48.4131598, "lon": -123.3430656}, {"name": "Tiedemann Place", "lat": 48.49112, "lon": -123.312242}, {"name": "Tillicum Book Exchange", "lat": 48.4518939, "lon": -123.3938903}, {"name": "Tiny Tree House Library", "lat": 48.4273852, "lon": -123.4079325}, {"name": "Tony's Book Nook", "lat": 48.4485013, "lon": -123.4294679}, {"name": "Top of the Hill LFL", "lat": 48.4864554, "lon": -123.3197629}, {"name": "Topaz Free Library", "lat": 48.4433451, "lon": -123.3560349}, {"name": "Toronto and Government LFL", "lat": 48.4158386, "lon": -123.3689182}, {"name": "Toronto St. Book House", "lat": 48.4156865, "lon": -123.3707269}, {"name": "Torquay Dr. LFL", "lat": 48.4834946, "lon": -123.3266932}, {"name": "Torquay School LFL", "lat": 48.4868941, "lon": -123.324228}, {"name": "Tory Place Book Exchange", "lat": 48.41744, "lon": -123.4995488}, {"name": "Totoro's Little Library", "lat": 48.4640732, "lon": -123.3570898}, {"name": "Townley St. Little Library", "lat": 48.4402378, "lon": -123.3223671}, {"name": "Township Coffee LFL", "lat": 48.4828234, "lon": -123.3215166}, {"name": "Transit Road Books", "lat": 48.4144959, "lon": -123.309592}, {"name": "Transit Road LFL", "lat": 48.4179701, "lon": -123.3094505}, {"name": "Treehouse Little Free Library", "lat": 48.6427835, "lon": -123.4629052}, {"name": "Tree of Life Library🪁", "lat": 48.4385366, "lon": -123.4098207}, {"name": "Trentelmann Books", "lat": 48.5930695, "lon": -123.4234659}, {"name": "Trestle Place Reads", "lat": 48.45317, "lon": -123.5445891}, {"name": "Tribe Rentals LFL", "lat": 48.4637912, "lon": -123.3330423}, {"name": "Troll Library", "lat": 48.8875102, "lon": -123.3371609}, {"name": "Tsaykum Rd. Little Lending Library", "lat": 48.6603805, "lon": -123.4474125}, {"name": "T's Lil Library", "lat": 48.4805259, "lon": -123.3334726}, {"name": "Tucker's Little Book Exchange", "lat": 48.4415544, "lon": -123.328583}, {"name": "Tudor Ave", "lat": 48.4593764, "lon": -123.2877588}, {"name": "Tyndall Books", "lat": 48.4807288, "lon": -123.3228139}, {"name": "Twin View LFL", "lat": 48.5585622, "lon": -123.3989055}, {"name": "Uplands Book House", "lat": 48.4483692, "lon": -123.3060337}, {"name": "UVic Campus Community Garden", "lat": 48.4689663, "lon": -123.3147311}, {"name": "Vallis Books", "lat": 48.6620042, "lon": -123.4103603}, {"name": "Vancouver St. Books", "lat": 48.4370753, "lon": -123.3565337}, {"name": "Vesuvius Beach Books", "lat": 48.8786122, "lon": -123.5696882}, {"name": "Vancouver St. Book Box", "lat": 48.4358031, "lon": -123.3561865}, {"name": "Veterans Memorial Little Library", "lat": 48.4968564, "lon": -123.3790947}, {"name": "Vic West Books on McCaskill Street", "lat": 48.4360985, "lon": -123.3921343}, {"name": "Vic West Community Centre", "lat": 48.4373583, "lon": -123.3883524}, {"name": "Victor Street", "lat": 48.4370167, "lon": -123.3371544}, {"name": "Victoria Ave. LFL", "lat": 48.4237341, "lon": -123.3187193}, {"name": "Victoria Community Fridge 🍞", "lat": 48.4383971, "lon": -123.3697992}, {"name": "Victoria Literacy Connection LFL", "lat": 48.4325897, "lon": -123.3601035}, {"name": "Viewmont Books", "lat": 48.4934301, "lon": -123.3899034}, {"name": "Viewmont Little Free Library", "lat": 48.4969715, "lon": -123.3876014}, {"name": "View Royal Lil Book Exchange", "lat": 48.4554773, "lon": -123.447082}, {"name": "Vincent Ave. LFL", "lat": 48.4502301, "lon": -123.4028112}, {"name": "Vincent LFL 🪁", "lat": 48.4523195, "lon": -123.406861}, {"name": "Vining and Fernwood Books", "lat": 48.4294281, "lon": -123.3451492}, {"name": "Vista Heights", "lat": 48.4414119, "lon": -123.3549106}, {"name": "Vista Hoots", "lat": 48.4422251, "lon": -123.3472798}, {"name": "Wakefield Manor Books", "lat": 48.6517946, "lon": -123.3979679}, {"name": "Walkers Hook Rd. Library", "lat": 48.9147692, "lon": -123.5324799}, {"name": "Walfred Library", "lat": 48.4288587, "lon": -123.5231627}, {"name": "Wallace Dr. LFL", "lat": 48.5736944, "lon": -123.4500303}, {"name": "Wallace Point Book Box", "lat": 48.7401568, "lon": -123.2412321}, {"name": "Walnut Reads", "lat": 48.4334157, "lon": -123.3410114}, {"name": "Walter Reads", "lat": 48.4528845, "lon": -123.405926}, {"name": "Warren Gardens Book Exchange", "lat": 48.4177234, "lon": -123.3347297}, {"name": "Washington Ave. LFL", "lat": 48.4452378, "lon": -123.3805297}, {"name": "Washington Reads", "lat": 48.4464054, "lon": -123.3801468}, {"name": "Watson's Book Nook", "lat": 48.4452966, "lon": -123.3228986}, {"name": "Wee Book Exchange on King George Terrace", "lat": 48.4115422, "lon": -123.3176279}, {"name": "Wee Library", "lat": 48.6354836, "lon": -123.4173893}, {"name": "Wee Oswego Library", "lat": 48.4173018, "lon": -123.3786789}, {"name": "Welcome to Fernwood LFL", "lat": 48.4287172, "lon": -123.3451803}, {"name": "Wendy's LFL", "lat": 48.4475065, "lon": -123.4241791}, {"name": "Westall Books", "lat": 48.4432848, "lon": -123.3426309}, {"name": "Wessex Crescent LFL", "lat": 48.4477091, "lon": -123.3202139}, {"name": "West of the Moon LFL", "lat": 48.4370572, "lon": -123.3179954}, {"name": "Whetherby LFL", "lat": 48.4487463, "lon": -123.3401227}, {"name": "Whiffin Spit Books", "lat": 48.3571922, "lon": -123.72842}, {"name": "White Birch Books", "lat": 48.6675686, "lon": -123.416021}, {"name": "Wicklow Village Library", "lat": 48.4514569, "lon": -123.3570778}, {"name": "Wilks Road Book Exchange", "lat": 48.8544246, "lon": -123.2649553}, {"name": "Willows Beach LFLs", "lat": 48.4351053, "lon": -123.3041856}, {"name": "Willow Way Farm Book Nook", "lat": 48.5678683, "lon": -123.4393895}, {"name": "Wilmer Street Free Library", "lat": 48.4227614, "lon": -123.3273976}, {"name": "Wilson St. LFL", "lat": 48.4311274, "lon": -123.379088}, {"name": "Windsor Farm LFL", "lat": 48.7606793, "lon": -123.4669124}, {"name": "Winfield Little Library", "lat": 48.3762487, "lon": -123.7430605}, {"name": "Winston Cresc. LFL", "lat": 48.4595633, "lon": -123.3623178}, {"name": "Winston's Dog Library", "lat": 48.3993251, "lon": -123.5506689}, {"name": "Wise Crow Book Nook", "lat": 48.4351588, "lon": -123.3313769}, {"name": "Wolfhead News", "lat": 48.5601649, "lon": -123.402096}, {"name": "Wollaston Book Exchange", "lat": 48.4286717, "lon": -123.4063741}, {"name": "Wonderland LFL", "lat": 48.4314217, "lon": -123.3426024}, {"name": "Woodall Book Exchange", "lat": 48.8573162, "lon": -123.5122449}, {"name": "Woodhouse Reads", "lat": 48.4361996, "lon": -123.3140278}, {"name": "Woodland LFL", "lat": 48.8747692, "lon": -123.5507583}, {"name": "Woodpecker LFL", "lat": 48.43336, "lon": -123.3370753}, {"name": "Woodridge Books for Kids", "lat": 48.5072244, "lon": -123.4638132}, {"name": "Wootton Road Books", "lat": 48.3804146, "lon": -123.5252526}, {"name": "Wordsworth Reads", "lat": 48.4508164, "lon": -123.3351013}, {"name": "Wright Road Reads", "lat": 48.3647074, "lon": -123.7327987}, {"name": "Wark Reads", "lat": 48.4372685, "lon": -123.3598955}, {"name": "Windsor Cafe LFL", "lat": 48.4234269, "lon": -123.3071963}, {"name": "Wychbury Book Box", "lat": 48.4257109, "lon": -123.4099912}, {"name": "Wychbury LFL", "lat": 48.4249885, "lon": -123.4058552}, {"name": "Yarn and Fabric Library 🧶", "lat": 48.4365825, "lon": -123.4100414}, {"name": "Yates Street Community Garden LFL", "lat": 48.4254062, "lon": -123.3554655}, {"name": "Yew St. LFL", "lat": 48.4467732, "lon": -123.3638555}, {"name": "You're Epworth It Books", "lat": 48.4352594, "lon": -123.3194167}, {"name": "Zadie's Lil' Library", "lat": 48.4659208, "lon": -123.5035423}, {"name": "Zany Reads on Zinnia", "lat": 48.4695225, "lon": -123.4092109}, {"name": "əŋaʔstəl", "lat": 48.4319651, "lon": -123.3785029}, {"name": "Joffre Books and Seeds", "lat": 48.4287879, "lon": -123.4081}, {"name": "Beechwood Seed Exchange", "lat": 48.4130267, "lon": -123.3327025}, {"name": "Beechwood Seed Exchange Too", "lat": 48.4124509, "lon": -123.3326338}, {"name": "Casa Linda Caixa de Livros", "lat": 48.4355714, "lon": -123.3545102}, {"name": "Connie's Cookie Jar - Seeds", "lat": 48.4590809, "lon": -123.3716926}, {"name": "D.M. Ferry and Co. Seed Library", "lat": 48.4284509, "lon": -123.4050925}, {"name": "Dunedin Seed/Seedling Exchange", "lat": 48.4414318, "lon": -123.37342}, {"name": "Falaise Lending Library", "lat": 48.5003465, "lon": -123.3793871}, {"name": "Garden View Seed Library", "lat": 48.4360255, "lon": -123.3344078}, {"name": "Garden Street Seed Library", "lat": 48.4359383, "lon": -123.3461697}, {"name": "Galloway Rd Little Free Plant Stand", "lat": 48.4231997, "lon": -123.4971015}, {"name": "Glendenning Farm Library", "lat": 48.4804037, "lon": -123.3459398}, {"name": "Hadfield Ave Seed Library", "lat": 48.4230395, "lon": -123.4114524}, {"name": "Herm Williams Park Little Free Plant Stand", "lat": 48.4362011, "lon": -123.4955952}, {"name": "Joffre Books and Seeds", "lat": 48.4288377, "lon": -123.4081108}, {"name": "Langholme Little Free Plant Stand", "lat": 48.4313955, "lon": -123.4906389}, {"name": "Miller Lending Library", "lat": 48.4907718, "lon": -123.4004941}, {"name": "Mills Rd. LFL", "lat": 48.6554792, "lon": -123.4062887}, {"name": "Mortimer Seed Library", "lat": 48.4648104, "lon": -123.3269443}, {"name": "Oakridge Exchange", "lat": 48.4790498, "lon": -123.3987271}, {"name": "One Wee Free Seed Box", "lat": 48.4168795, "lon": -123.3728928}, {"name": "Pages and Petals", "lat": 48.4918188, "lon": -123.3324701}, {"name": "Paradise Seeds Librart", "lat": 48.4275159, "lon": -123.4001402}, {"name": "Pembooks Seed Library", "lat": 48.4315652, "lon": -123.3489782}, {"name": "Reads and Seeds", "lat": 48.4341084, "lon": -123.3073641}, {"name": "Robinwood Seed Library", "lat": 48.4877346, "lon": -123.3346025}, {"name": "Shelagh Rogers Lending Library", "lat": 48.4633839, "lon": -123.3161715}, {"name": "The Little Red Plough Seed Library", "lat": 48.4731625, "lon": -123.4053194}, {"name": "The Maison d'Être Little Library", "lat": 48.4364896, "lon": -123.3424222}, {"name": "VSIE Seed Library", "lat": 48.4404066, "lon": -123.339118}, {"name": "Vic West Elementary School Seed Library", "lat": 48.43368, "lon": -123.3903632}, {"name": "Wark Seeds", "lat": 48.4372685, "lon": -123.3598955}, {"name": "Wicklow Village Seed Library", "lat": 48.4511628, "lon": -123.3568125}, {"name": "Wishart Little Free Plant Stand", "lat": 48.4076455, "lon": -123.5012425}, {"name": "Wootton Road Reads", "lat": 48.3804075, "lon": -123.5252526}, {"name": "Ardmore Puzzle Swap", "lat": 48.6342204, "lon": -123.4759518}, {"name": "Connie's Cookie Jar - Puzzle Exchange", "lat": 48.4590809, "lon": -123.3716926}, {"name": "Curteis Rd. Free Puzzle Exchange", "lat": 48.6820958, "lon": -123.4083494}, {"name": "Dalhousie Activity Exchange", "lat": 48.4351732, "lon": -123.3160553}, {"name": "Donald St. LFL and Puzzle Library", "lat": 48.4477042, "lon": -123.3952163}, {"name": "Esquimalt Puzzle and Game Library", "lat": 48.423836, "lon": -123.4118998}, {"name": "Fall Some Book Exchange", "lat": 48.3896607, "lon": -123.525386}, {"name": "Glanford Share Shack🪁", "lat": 48.4729951, "lon": -123.3894942}, {"name": "Greenway Co-op LFL", "lat": 48.4506331, "lon": -123.3655721}, {"name": "Little Acorn LFL 🧶🍞", "lat": 48.4712213, "lon": -123.3714525}, {"name": "Lockley Free Puzzle Library", "lat": 48.4369545, "lon": -123.4157134}, {"name": "Melville Puzzle Exchange", "lat": 48.663386, "lon": -123.4140571}, {"name": "Michele's Little Library", "lat": 48.4097092, "lon": -123.3510093}, {"name": "Miller Lending Library", "lat": 48.490779, "lon": -123.4004941}, {"name": "Nicholson Free Puzzle Library", "lat": 48.4758321, "lon": -123.3635353}, {"name": "Piece by Piece Puzzle Library", "lat": 48.5544662, "lon": -123.4004204}, {"name": "Piercy Puzzle Exchange", "lat": 48.6609032, "lon": -123.4134653}, {"name": "Piratical Puzzle Library", "lat": 48.4402346, "lon": -123.3541373}, {"name": "PD's Puzzle Palace", "lat": 48.458962, "lon": -123.3191154}, {"name": "Royal Bay Books & Puzzles & Games", "lat": 48.4108805, "lon": -123.4964646}, {"name": "Swartz Bay Puzzle Swap", "lat": 48.6789659, "lon": -123.4219196}, {"name": "St. Patrick St. Puzzle Exchange", "lat": 48.4156904, "lon": -123.3116634}, {"name": "The Book Shack & More", "lat": 48.4317078, "lon": -123.5147259}, {"name": "The Puzzle Box", "lat": 48.4655151, "lon": -123.3414936}, {"name": "The Village Exchange", "lat": 48.5882457, "lon": -123.3991353}, {"name": "VicWest Community Puzzle Exchange", "lat": 48.4373583, "lon": -123.3883131}, {"name": "View Royal Puzzle Exchange", "lat": 48.4589235, "lon": -123.4355815}, {"name": "Quimper St. Puzzle Exchange", "lat": 48.4078719, "lon": -123.3217715}, {"name": "Art n' Zine Library", "lat": 48.4274824, "lon": -123.4193526}, {"name": "Belmont LFL and Art Gallery", "lat": 48.4344268, "lon": -123.3399348}, {"name": "Cedar Hill Free Little Gallery and Library", "lat": 48.4443859, "lon": -123.3474194}, {"name": "Craft Cupboard", "lat": 48.4833863, "lon": -123.3421731}, {"name": "Deja Vu Arts and Crafts Gallery", "lat": 48.4808108, "lon": -123.3456321}, {"name": "Fernwood Little Free Art Gallery and Art Supply Station 🎨", "lat": 48.4302835, "lon": -123.3450434}, {"name": "Free Little Art Gallery", "lat": 48.6823122, "lon": -123.4103673}, {"name": "Hazelwood Little Rock Library", "lat": 48.4283904, "lon": -123.5317767}, {"name": "Little Acorn Art Gallery", "lat": 48.4712142, "lon": -123.3714921}, {"name": "Little Free Art Gallery on Avebury 🎨", "lat": 48.4372832, "lon": -123.342146}, {"name": "Nik-Nak-Nook", "lat": 48.4465165, "lon": -123.3449223}, {"name": "Mira's Art House", "lat": 48.4226341, "lon": -123.4100066}, {"name": "Sayward Little Free Art Gallery 🎨", "lat": 48.4323287, "lon": -123.3441648}, {"name": "The Maison d'Être Little Library", "lat": 48.4364717, "lon": -123.34239}, {"name": "The Great Pumpkin LFL", "lat": 48.429342, "lon": -123.2673611}];
+</script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------- State ----------
+  let allPoints = [];      // master list, never filtered [{name, lat, lon}]
+  let points = [];         // filtered working set actually solved/rendered
+  let n = 0;
+  let distMat = null;     // Float32Array n*n (over `points`)
+  let neighborLists = null;
+  let currentTour = null; // array of indices, in visiting order (closed-loop order before any open-path trim)
+  let displayTour = null; // the tour actually shown (possibly with one edge dropped for one-way trips)
+  let solving = false;
+  let stopRequested = false;
+  let map, routeLine, roadLine, markerLayer;
+
+  let tripMode = 'loop';        // 'loop' | 'open'
+  let distanceMode = 'direct';  // 'direct' | 'driving'
+  let gpuReady = false;         // WebGL2 distance-matrix available & verified this session
+  let gpuUserEnabled = true;    // user preference toggle
+
+  const DRIVING_MATRIX_MAX = 150; // cap for optimizing directly against a driving-time matrix
+  const OSRM_BASE = 'https://router.project-osrm.org';
+
+  const els = {
+    dropzone: document.getElementById('dropzone'),
+    dropzoneLabel: document.getElementById('dropzoneLabel'),
+    fileInput: document.getElementById('fileInput'),
+    fileInfo: document.getElementById('fileInfo'),
+    modeLoop: document.getElementById('modeLoop'),
+    modeOpen: document.getElementById('modeOpen'),
+    distDirect: document.getElementById('distDirect'),
+    distDriving: document.getElementById('distDriving'),
+    drivingOptions: document.getElementById('drivingOptions'),
+    optimizeDrivingChk: document.getElementById('optimizeDrivingChk'),
+    drivingCapNote: document.getElementById('drivingCapNote'),
+    startSelect: document.getElementById('startSelect'),
+    radiusSlider: document.getElementById('radiusSlider'),
+    radiusLabel: document.getElementById('radiusLabel'),
+    effortSelect: document.getElementById('effortSelect'),
+    gpuChk: document.getElementById('gpuChk'),
+    gpuStatus: document.getElementById('gpuStatus'),
+    solveBtn: document.getElementById('solveBtn'),
+    stopBtn: document.getElementById('stopBtn'),
+    progressWrap: document.getElementById('progressWrap'),
+    progressBar: document.getElementById('progressBar'),
+    progressLabel: document.getElementById('progressLabel'),
+    statsPanel: document.getElementById('statsPanel'),
+    statStops: document.getElementById('statStops'),
+    statDist: document.getElementById('statDist'),
+    statImprove: document.getElementById('statImprove'),
+    statTime: document.getElementById('statTime'),
+    downloadGpx: document.getElementById('downloadGpx'),
+    downloadCsv: document.getElementById('downloadCsv'),
+    routeSearch: document.getElementById('routeSearch'),
+    routeList: document.getElementById('routeList'),
+    emptyState: document.getElementById('emptyState'),
+  };
+
+  // ---------- Geometry ----------
+  function haversine(lat1, lon1, lat2, lon2){
+    const R = 6371;
+    const toRad = Math.PI/180;
+    const dLat = (lat2-lat1)*toRad;
+    const dLon = (lon2-lon1)*toRad;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*toRad)*Math.cos(lat2*toRad)*Math.sin(dLon/2)**2;
+    return 2*R*Math.asin(Math.sqrt(a));
+  }
+
+  function buildDistanceMatrix(pts){
+    const nn = pts.length;
+    const mat = new Float32Array(nn*nn);
+    for(let i=0;i<nn;i++){
+      for(let j=i+1;j<nn;j++){
+        const d = haversine(pts[i].lat, pts[i].lon, pts[j].lat, pts[j].lon);
+        mat[i*nn+j]=d; mat[j*nn+i]=d;
+      }
+    }
+    return mat;
+  }
+
+  // ---------- GPU (WebGL2) distance matrix ----------
+  // Computes the same haversine matrix on the GPU via a fragment shader, tiled to
+  // respect max texture size / memory. Every result is spot-checked against the
+  // CPU formula before being trusted; any mismatch silently disables the GPU path
+  // for the rest of the session and falls back to the CPU loop above.
+  const GPU = { checked:false, ok:false, gl:null, reason:'' };
+
+  function gpuInit(){
+    if(GPU.checked) return GPU.ok;
+    GPU.checked = true;
+    try{
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl2', {antialias:false, depth:false, stencil:false});
+      if(!gl){ GPU.reason = 'WebGL2 not supported'; return false; }
+      const ext = gl.getExtension('EXT_color_buffer_float');
+      if(!ext){ GPU.reason = 'EXT_color_buffer_float unavailable'; return false; }
+      GPU.gl = gl;
+      GPU.ok = true;
+      return true;
+    } catch(e){
+      GPU.reason = String(e && e.message || e);
+      return false;
+    }
+  }
+
+  function compileShader(gl, type, src){
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    if(!gl.getShaderParameter(sh, gl.COMPILE_STATUS)){
+      const log = gl.getShaderInfoLog(sh);
+      gl.deleteShader(sh);
+      throw new Error('Shader compile error: ' + log);
+    }
+    return sh;
+  }
+
+  const GPU_VS = `#version 300 es
+    in vec2 a_position;
+    void main(){ gl_Position = vec4(a_position, 0.0, 1.0); }
+  `;
+  const GPU_FS = `#version 300 es
+    precision highp float;
+    precision highp sampler2D;
+    uniform sampler2D u_points; // texel(i,0).rg = lat,lon in radians
+    uniform int u_numPoints;
+    uniform int u_rowOffset;
+    uniform int u_colOffset;
+    out vec4 outColor;
+    const float R = 6371.0;
+    void main(){
+      ivec2 texel = ivec2(gl_FragCoord.xy);
+      int j = u_colOffset + texel.x;
+      int i = u_rowOffset + texel.y;
+      if(i >= u_numPoints || j >= u_numPoints){ outColor = vec4(0.0); return; }
+      vec2 pi = texelFetch(u_points, ivec2(i,0), 0).rg;
+      vec2 pj = texelFetch(u_points, ivec2(j,0), 0).rg;
+      float dLat = pj.x - pi.x;
+      float dLon = pj.y - pi.y;
+      float s1 = sin(dLat*0.5);
+      float s2 = sin(dLon*0.5);
+      float a = s1*s1 + cos(pi.x)*cos(pj.x)*s2*s2;
+      a = clamp(a, 0.0, 1.0);
+      float c = 2.0 * asin(sqrt(a));
+      outColor = vec4(R * c, 0.0, 0.0, 1.0);
+    }
+  `;
+
+  function buildDistanceMatrixGPU(pts){
+    if(!gpuInit()) return null;
+    const gl = GPU.gl;
+    const nn = pts.length;
+    const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    const maxRenderbuf = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE);
+    const tileCap = Math.max(64, Math.min(maxTex, maxRenderbuf, 2048));
+
+    let program;
+    try{
+      const vs = compileShader(gl, gl.VERTEX_SHADER, GPU_VS);
+      const fs = compileShader(gl, gl.FRAGMENT_SHADER, GPU_FS);
+      program = gl.createProgram();
+      gl.attachShader(program, vs);
+      gl.attachShader(program, fs);
+      gl.linkProgram(program);
+      if(!gl.getProgramParameter(program, gl.LINK_STATUS)){
+        throw new Error('Program link error: ' + gl.getProgramInfoLog(program));
+      }
+    } catch(e){
+      GPU.ok = false; GPU.reason = String(e && e.message || e);
+      return null;
+    }
+
+    gl.useProgram(program);
+
+    // full-screen quad
+    const quad = new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]);
+    const vbo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, quad, gl.STATIC_DRAW);
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+    const posLoc = gl.getAttribLocation(program, 'a_position');
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+    // pack points (radians) into an RG32F data texture, width=nn height=1
+    const toRad = Math.PI/180;
+    const ptData = new Float32Array(nn*4);
+    for(let i=0;i<nn;i++){
+      ptData[i*4+0] = pts[i].lat*toRad;
+      ptData[i*4+1] = pts[i].lon*toRad;
+    }
+    const ptTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, ptTex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, nn, 1, 0, gl.RGBA, gl.FLOAT, ptData);
+
+    const uPoints = gl.getUniformLocation(program, 'u_points');
+    const uNum = gl.getUniformLocation(program, 'u_numPoints');
+    const uRowOff = gl.getUniformLocation(program, 'u_rowOffset');
+    const uColOff = gl.getUniformLocation(program, 'u_colOffset');
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, ptTex);
+    gl.uniform1i(uPoints, 0);
+    gl.uniform1i(uNum, nn);
+
+    const fbo = gl.createFramebuffer();
+    const mat = new Float32Array(nn*nn);
+
+    try{
+      for(let rowOff=0; rowOff<nn; rowOff+=tileCap){
+        const tileH = Math.min(tileCap, nn-rowOff);
+        for(let colOff=0; colOff<nn; colOff+=tileCap){
+          const tileW = Math.min(tileCap, nn-colOff);
+
+          const outTex = gl.createTexture();
+          gl.bindTexture(gl.TEXTURE_2D, outTex);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, tileW, tileH, 0, gl.RGBA, gl.FLOAT, null);
+
+          gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+          gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, outTex, 0);
+          if(gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE){
+            throw new Error('Incomplete framebuffer');
+          }
+
+          gl.viewport(0, 0, tileW, tileH);
+          gl.useProgram(program);
+          gl.bindVertexArray(vao);
+          gl.uniform1i(uRowOff, rowOff);
+          gl.uniform1i(uColOff, colOff);
+          gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+          const pixels = new Float32Array(tileW*tileH*4);
+          gl.readPixels(0, 0, tileW, tileH, gl.RGBA, gl.FLOAT, pixels);
+
+          for(let y=0;y<tileH;y++){
+            const i = rowOff+y;
+            for(let x=0;x<tileW;x++){
+              const j = colOff+x;
+              mat[i*nn+j] = pixels[(y*tileW+x)*4];
+            }
+          }
+          gl.deleteTexture(outTex);
+        }
+      }
+    } catch(e){
+      GPU.ok = false; GPU.reason = String(e && e.message || e);
+      gl.deleteFramebuffer(fbo); gl.deleteTexture(ptTex); gl.deleteProgram(program);
+      return null;
+    }
+
+    gl.deleteFramebuffer(fbo);
+    gl.deleteTexture(ptTex);
+    gl.deleteProgram(program);
+
+    // Self-verify against the CPU formula on a random sample; if it drifts, distrust GPU.
+    const samples = Math.min(60, nn*nn);
+    let maxErr = 0;
+    for(let s=0; s<samples; s++){
+      const i = Math.floor(Math.random()*nn);
+      const j = Math.floor(Math.random()*nn);
+      const cpuD = haversine(pts[i].lat, pts[i].lon, pts[j].lat, pts[j].lon);
+      const gpuD = mat[i*nn+j];
+      const err = Math.abs(cpuD-gpuD);
+      if(err > maxErr) maxErr = err;
+    }
+    // Allow tiny float32 rounding drift (~metres); anything larger means the shader
+    // produced wrong results on this device/driver, so we distrust the GPU entirely.
+    const TOLERANCE_KM = 0.05; // 50 m
+    if(maxErr > TOLERANCE_KM){
+      GPU.ok = false;
+      GPU.reason = 'Self-check mismatch (\u0394=' + maxErr.toFixed(3) + 'km), disabling GPU';
+      return null;
+    }
+    return mat;
+  }
+
+  // Dispatches to GPU when available/enabled and the sample set is large enough to
+  // be worth it, verifying every time; always falls back to the tested CPU path.
+  function computeDistanceMatrix(pts){
+    if(gpuUserEnabled && pts.length >= 40){
+      const t0 = performance.now();
+      const gpuMat = buildDistanceMatrixGPU(pts);
+      if(gpuMat){
+        gpuReady = true;
+        updateGpuStatus(true, performance.now()-t0);
+        return gpuMat;
+      }
+      gpuReady = false;
+      updateGpuStatus(false);
+    } else {
+      updateGpuStatus(false);
+    }
+    return buildDistanceMatrix(pts);
+  }
+
+  function updateGpuStatus(usedGpu, ms){
+    if(!els.gpuStatus) return;
+    if(!gpuInit()){
+      els.gpuStatus.textContent = 'GPU unavailable in this browser (' + (GPU.reason||'no WebGL2') + ') — using CPU.';
+      els.gpuStatus.style.color = 'var(--ink-soft)';
+    } else if(usedGpu){
+      els.gpuStatus.textContent = 'GPU acceleration active (WebGL2) — matrix built in ' + ms.toFixed(0) + ' ms.';
+      els.gpuStatus.style.color = 'var(--pine-dark)';
+    } else if(gpuUserEnabled){
+      els.gpuStatus.textContent = 'GPU available but not used for this run — using CPU.';
+      els.gpuStatus.style.color = 'var(--ink-soft)';
+    } else {
+      els.gpuStatus.textContent = 'GPU acceleration off — using CPU.';
+      els.gpuStatus.style.color = 'var(--ink-soft)';
+    }
+  }
+
+  function buildNeighborLists(mat, nn, k){
+    const lists = new Array(nn);
+    for(let i=0;i<nn;i++){
+      const idx = [];
+      for(let j=0;j<nn;j++) if(j!==i) idx.push(j);
+      idx.sort((a,b)=> mat[i*nn+a]-mat[i*nn+b]);
+      lists[i] = idx.slice(0, k);
+    }
+    return lists;
+  }
+
+  // ---------- OSRM road routing (optional "Driving" distance mode) ----------
+  // Uses the public OSRM demo server. This is a free, rate-limited, best-effort
+  // service intended for light/demo use — not guaranteed uptime or throughput.
+  // Every call is wrapped so failures fall back to straight-line results instead
+  // of breaking the app.
+  function sleep(ms){ return new Promise(res => setTimeout(res, ms)); }
+
+  async function osrmTableMatrix(pts, sourceBatchSize, onProgress, signal){
+    const nn = pts.length;
+    const mat = new Float32Array(nn*nn);
+    const coordStr = pts.map(p => `${p.lon},${p.lat}`).join(';');
+    for(let s=0; s<nn; s+=sourceBatchSize){
+      if(signal && signal.aborted) throw new Error('cancelled');
+      const sourcesIdx = [];
+      for(let k=s; k<Math.min(s+sourceBatchSize, nn); k++) sourcesIdx.push(k);
+      const url = `${OSRM_BASE}/table/v1/driving/${coordStr}?sources=${sourcesIdx.join(';')}&annotations=distance`;
+      const resp = await fetch(url, {signal});
+      if(!resp.ok) throw new Error('OSRM table request failed (HTTP ' + resp.status + ')');
+      const data = await resp.json();
+      if(data.code !== 'Ok') throw new Error('OSRM table error: ' + data.code);
+      for(let si=0; si<sourcesIdx.length; si++){
+        const srcGlobal = sourcesIdx[si];
+        const row = data.distances[si];
+        for(let d=0; d<nn; d++){
+          const meters = row[d];
+          mat[srcGlobal*nn+d] = (meters==null) ? 999999 : meters/1000;
+        }
+      }
+      onProgress(Math.min(nn, s+sourceBatchSize), nn);
+      if(s+sourceBatchSize < nn) await sleep(200);
+    }
+    return mat;
+  }
+
+  // Fetches real road geometry + real distances for an ordered list of stops,
+  // batching waypoints (public OSRM caps request size) and stitching the results
+  // into one continuous polyline. Returns Leaflet-ready [lat,lon] pairs.
+  async function osrmRouteForPath(orderedPts, batchSize, onProgress, signal){
+    const total = orderedPts.length;
+    const latlngs = [];
+    let totalKm = 0;
+    for(let i=0; i<total-1; i+=(batchSize-1)){
+      if(signal && signal.aborted) throw new Error('cancelled');
+      const chunk = orderedPts.slice(i, Math.min(i+batchSize, total));
+      if(chunk.length < 2) break;
+      const coordStr = chunk.map(p => `${p.lon},${p.lat}`).join(';');
+      const url = `${OSRM_BASE}/route/v1/driving/${coordStr}?overview=full&geometries=geojson`;
+      const resp = await fetch(url, {signal});
+      if(!resp.ok) throw new Error('OSRM route request failed (HTTP ' + resp.status + ')');
+      const data = await resp.json();
+      if(data.code !== 'Ok' || !data.routes || !data.routes.length) throw new Error('OSRM route error: ' + data.code);
+      const route = data.routes[0];
+      totalKm += route.distance/1000;
+      const coords = route.geometry.coordinates; // [[lon,lat], ...]
+      let chunkLatLngs = coords.map(c => [c[1], c[0]]);
+      if(latlngs.length > 0) chunkLatLngs = chunkLatLngs.slice(1); // drop duplicated junction point
+      latlngs.push(...chunkLatLngs);
+      onProgress(Math.min(i+batchSize, total), total);
+      if(i+batchSize < total) await sleep(200);
+    }
+    return { latlngs, totalKm };
+  }
+  // ---------- KML parsing ----------
+  function parseKML(text){
+    const doc = new DOMParser().parseFromString(text, "application/xml");
+    const perr = doc.querySelector('parsererror');
+    if(perr) throw new Error("Could not parse this file as XML/KML.");
+    const placemarks = Array.from(doc.getElementsByTagName('Placemark'));
+    const out = [];
+    for(const pm of placemarks){
+      const nameEl = pm.getElementsByTagName('name')[0];
+      const ptEl = pm.getElementsByTagName('Point')[0];
+      if(!ptEl) continue;
+      const coordEl = ptEl.getElementsByTagName('coordinates')[0];
+      if(!coordEl) continue;
+      const raw = coordEl.textContent.trim();
+      const parts = raw.split(',');
+      if(parts.length < 2) continue;
+      const lon = parseFloat(parts[0]);
+      const lat = parseFloat(parts[1]);
+      if(!isFinite(lat) || !isFinite(lon)) continue;
+      const name = nameEl ? nameEl.textContent.trim() : ('Stop ' + (out.length+1));
+      out.push({name, lat, lon});
+    }
+    return out;
+  }
+
+  // ---------- Solver primitives ----------
+  function tourLength(tour, mat, nn, closed){
+    let total = 0;
+    for(let i=0;i<nn-1;i++) total += mat[tour[i]*nn + tour[i+1]];
+    if(closed) total += mat[tour[nn-1]*nn + tour[0]];
+    return total;
+  }
+
+  function nearestNeighborTour(mat, nn, start){
+    const visited = new Uint8Array(nn);
+    const tour = new Array(nn);
+    let current = start;
+    visited[current] = 1;
+    tour[0] = current;
+    for(let step=1; step<nn; step++){
+      let best=-1, bestD=Infinity;
+      for(let j=0;j<nn;j++){
+        if(!visited[j]){
+          const d = mat[current*nn+j];
+          if(d<bestD){bestD=d;best=j;}
+        }
+      }
+      visited[best]=1;
+      tour[step]=best;
+      current=best;
+    }
+    return tour;
+  }
+
+  function twoOptPass(tour, mat, nn, nbrLists, deadline){
+    const pos = new Int32Array(nn);
+    for(let i=0;i<nn;i++) pos[tour[i]] = i;
+
+    function reverse(ii, jj){
+      let lo = ii+1, hi = jj;
+      while(lo < hi){
+        const tl = tour[lo], th = tour[hi];
+        tour[lo] = th; tour[hi] = tl;
+        pos[th] = lo; pos[tl] = hi;
+        lo++; hi--;
+      }
+    }
+
+    let improvedAny = true;
+    while(improvedAny){
+      if(Date.now() >= deadline) break;
+      improvedAny = false;
+      for(let a=0; a<nn; a++){
+        if((a & 63) === 0 && Date.now() >= deadline) break;
+        const i = pos[a];
+        const b = tour[(i+1)%nn];
+        const dab = mat[a*nn+b];
+        const nbrs = nbrLists[a];
+        for(let t=0;t<nbrs.length;t++){
+          const c = nbrs[t];
+          const dac = mat[a*nn+c];
+          if(dac >= dab) break;
+          const j = pos[c];
+          const d = tour[(j+1)%nn];
+          if(c===b || d===a) continue;
+          const dcd = mat[c*nn+d];
+          const dbd = mat[b*nn+d];
+          const delta = (dac + dbd) - (dab + dcd);
+          if(delta < -1e-7){
+            let ii=i, jj=j;
+            if(ii>jj){ const tmp=ii; ii=jj; jj=tmp; }
+            if(ii===0 && jj===nn-1) continue;
+            reverse(ii,jj);
+            improvedAny = true;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  function orOptPass(tour, mat, nn, nbrLists, deadline){
+    const pos = new Int32Array(nn);
+    for(let i=0;i<nn;i++) pos[tour[i]] = i;
+
+    function rebuildPos(from){
+      for(let k=from;k<nn;k++) pos[tour[k]] = k;
+    }
+
+    let improvedAny = true;
+    while(improvedAny){
+      if(Date.now() >= deadline) break;
+      improvedAny = false;
+      for(let node=0; node<nn; node++){
+        if((node & 63) === 0 && Date.now() >= deadline) break;
+        const i = pos[node];
+        const p = tour[(i-1+nn)%nn], a = tour[i], q = tour[(i+1)%nn];
+        if(p===a || q===a) continue;
+        const removeGain = mat[p*nn+a] + mat[a*nn+q] - mat[p*nn+q];
+        if(removeGain <= 1e-7) continue;
+        const nbrs = nbrLists[a];
+        for(let t=0;t<nbrs.length;t++){
+          const c = nbrs[t];
+          const dac = mat[a*nn+c];
+          if(dac >= removeGain) break;
+          if(c===p || c===q || c===a) continue;
+          const jc = pos[c];
+          const d = tour[(jc+1)%nn];
+          if(d===a) continue;
+          const addCost = dac + mat[a*nn+d] - mat[c*nn+d];
+          if(addCost < removeGain - 1e-7){
+            tour.splice(i,1);
+            const insertAt = tour.indexOf(c);
+            tour.splice(insertAt+1, 0, a);
+            rebuildPos(0);
+            improvedAny = true;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  function rotateToStart(tour, s){
+    const idx = tour.indexOf(s);
+    if(idx <= 0) return tour.slice();
+    return tour.slice(idx).concat(tour.slice(0, idx));
+  }
+
+  function doubleBridge(tour, nn){
+    if(nn < 8) return tour.slice();
+    const cuts = new Set();
+    while(cuts.size < 3){
+      cuts.add(1 + Math.floor(Math.random()*(nn-1)));
+    }
+    const [p1,p2,p3] = Array.from(cuts).sort((a,b)=>a-b);
+    const A = tour.slice(0,p1), B = tour.slice(p1,p2), C = tour.slice(p2,p3), D = tour.slice(p3);
+    return [].concat(A, C, B, D);
+  }
+
+  function localSearch(tour, mat, nn, nbrLists, deadline){
+    twoOptPass(tour, mat, nn, nbrLists, deadline);
+    orOptPass(tour, mat, nn, nbrLists, deadline);
+    twoOptPass(tour, mat, nn, nbrLists, deadline);
+  }
+
+  // ---------- Async iterated local search with progress ----------
+  function solveAsync(opts, onProgress, onDone){
+    const { mat, nn, nbrLists, timeBudget, startIdx } = opts;
+    const t0 = Date.now();
+    const deadlineTotal = t0 + timeBudget;
+
+    let best = nearestNeighborTour(mat, nn, startIdx);
+    localSearch(best, mat, nn, nbrLists, Math.min(deadlineTotal, Date.now()+5000));
+    let bestLen = tourLength(best, mat, nn, true);
+    const nnLen = bestLen;
+    let iters = 0;
+
+    function step(){
+      if(stopRequested || Date.now() >= deadlineTotal){
+        finish();
+        return;
+      }
+      iters++;
+      const candidate = doubleBridge(best, nn);
+      const stepDeadline = Math.min(deadlineTotal, Date.now() + 1500);
+      localSearch(candidate, mat, nn, nbrLists, stepDeadline);
+      const candLen = tourLength(candidate, mat, nn, true);
+      if(candLen < bestLen - 1e-6){
+        best = candidate;
+        bestLen = candLen;
+      }
+      const elapsed = Date.now() - t0;
+      const pct = Math.min(100, Math.round(100 * elapsed / timeBudget));
+      onProgress(pct, bestLen, iters, elapsed);
+      setTimeout(step, 0);
+    }
+
+    function finish(){
+      const elapsed = Date.now() - t0;
+      onDone(best, bestLen, nnLen, iters, elapsed);
+    }
+
+    setTimeout(step, 0);
+  }
+
+  // ---------- Open path: drop an edge of the closed tour to make it one-way ----------
+  // If forceStart is true, the path is guaranteed to begin exactly at fixedStartIdx
+  // (we drop whichever of its two adjacent edges is longer). Otherwise we drop the
+  // single longest edge anywhere in the tour, for the shortest possible open path.
+  function makeOpenFromClosed(tour, mat, nn, fixedStartIdx, forceStart){
+    if(forceStart){
+      const i0 = tour.indexOf(fixedStartIdx);
+      const prev = tour[(i0-1+nn)%nn];
+      const next = tour[(i0+1)%nn];
+      const dPrevStart = mat[prev*nn+fixedStartIdx];
+      const dStartNext = mat[fixedStartIdx*nn+next];
+      const forward = tour.slice(i0).concat(tour.slice(0, i0)); // [start, next, ..., prev]
+      if(dPrevStart >= dStartNext){
+        return { path: forward, droppedDistance: dPrevStart };
+      } else {
+        const backward = [forward[0]].concat(forward.slice(1).reverse()); // [start, prev, ..., next]
+        return { path: backward, droppedDistance: dStartNext };
+      }
+    }
+    let longest = -1, longestVal = -Infinity;
+    for(let i=0;i<nn;i++){
+      const a = tour[i], b = tour[(i+1)%nn];
+      const d = mat[a*nn+b];
+      if(d > longestVal){ longestVal = d; longest = i; }
+    }
+    const startPos = (longest+1) % nn;
+    const path = tour.slice(startPos).concat(tour.slice(0, startPos));
+    return { path, droppedDistance: longestVal };
+  }
+
+  // ---------- UI wiring ----------
+  function setAllPoints(newPoints){
+    allPoints = newPoints;
+    populateStartSelect();
+    updateRadiusRange();
+    applyRadiusFilter();
+  }
+
+  function resolveCenterMasterIdx(){
+    const v = els.startSelect.value;
+    if(v !== 'auto'){
+      const idx = parseInt(v, 10);
+      if(idx >= 0 && idx < allPoints.length) return idx;
+    }
+    return 0; // fall back to the first stop (alphabetically, since options are sorted) as a filter reference
+  }
+
+  function updateRadiusRange(){
+    if(allPoints.length === 0) return;
+    const centerIdx = resolveCenterMasterIdx();
+    const c = allPoints[centerIdx];
+    let maxD = 0;
+    for(const p of allPoints){
+      const d = haversine(c.lat, c.lon, p.lat, p.lon);
+      if(d > maxD) maxD = d;
+    }
+    maxD = Math.ceil(maxD * 10) / 10;
+    els.radiusSlider.min = '0.5';
+    els.radiusSlider.max = String(Math.max(1, maxD));
+    els.radiusSlider.step = '0.5';
+    if(!els.radiusSlider.dataset.userTouched){
+      els.radiusSlider.value = els.radiusSlider.max; // default: include everything
+    }
+  }
+
+  function applyRadiusFilter(){
+    if(allPoints.length === 0){ points = []; n = 0; }
+    else {
+      const centerIdx = resolveCenterMasterIdx();
+      const center = allPoints[centerIdx];
+      const radius = parseFloat(els.radiusSlider.value);
+      const maxPossible = parseFloat(els.radiusSlider.max);
+      if(!isFinite(radius) || radius >= maxPossible - 1e-9){
+        points = allPoints.slice();
+      } else {
+        points = allPoints.filter(p => haversine(center.lat, center.lon, p.lat, p.lon) <= radius);
+        if(points.indexOf(center) === -1) points.unshift(center); // guarantee center stays included
+      }
+      n = points.length;
+    }
+    distMat = null;
+    neighborLists = null;
+    currentTour = null;
+    displayTour = null;
+    renderMarkersOnly();
+    els.statsPanel.style.display = 'none';
+    els.routeList.innerHTML = '';
+    els.emptyState.style.display = 'block';
+    const radiusVal = parseFloat(els.radiusSlider.value);
+    const maxVal = parseFloat(els.radiusSlider.max);
+    els.radiusLabel.textContent = (radiusVal >= maxVal - 1e-9)
+      ? `All ${allPoints.length} stops included`
+      : `${n} of ${allPoints.length} stops within ${radiusVal.toFixed(1)} km`;
+    els.emptyState.textContent = n + ' stops in range. Click "Solve route" to generate an optimized visiting order.';
+    updateDrivingCapNote();
+  }
+
+  function populateStartSelect(){
+    const prevVal = els.startSelect.value;
+    const sorted = allPoints.map((p,i)=>({name:p.name, i})).sort((a,b)=>a.name.localeCompare(b.name));
+    els.startSelect.innerHTML = '<option value="auto">Any (let solver choose)</option>' +
+      sorted.map(s => `<option value="${s.i}">${escapeHtml(s.name)}</option>`).join('');
+    // try to preserve the previous selection across a reload/re-filter
+    if(prevVal && Array.from(els.startSelect.options).some(o=>o.value===prevVal)){
+      els.startSelect.value = prevVal;
+    }
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- Map ----------
+  function initMap(){
+    map = L.map('map', {preferCanvas:true}).setView([48.43, -123.37], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    markerLayer = L.layerGroup().addTo(map);
+  }
+
+  function renderMarkersOnly(){
+    markerLayer.clearLayers();
+    if(routeLine){ map.removeLayer(routeLine); routeLine = null; }
+    if(roadLine){ map.removeLayer(roadLine); roadLine = null; }
+    if(n === 0) return;
+    const bounds = [];
+    points.forEach((p) => {
+      const m = L.circleMarker([p.lat, p.lon], {
+        radius: 4, weight: 1.2, color:'#2B2620', fillColor:'#D7A32E', fillOpacity:0.9
+      }).bindPopup(`<b>${escapeHtml(p.name)}</b>`);
+      m.addTo(markerLayer);
+      bounds.push([p.lat, p.lon]);
+    });
+    if(bounds.length) map.fitBounds(bounds, {padding:[24,24]});
+  }
+
+  function colorForFraction(f){
+    // pine -> mustard -> barn gradient across the route
+    const stops = [
+      [0.00, [47,70,50]],
+      [0.5,  [215,163,46]],
+      [1.00, [131,47,34]],
+    ];
+    for(let i=0;i<stops.length-1;i++){
+      const [f0,c0] = stops[i], [f1,c1] = stops[i+1];
+      if(f>=f0 && f<=f1){
+        const t = (f-f0)/(f1-f0);
+        const r = Math.round(c0[0]+(c1[0]-c0[0])*t);
+        const g = Math.round(c0[1]+(c1[1]-c0[1])*t);
+        const b = Math.round(c0[2]+(c1[2]-c0[2])*t);
+        return `rgb(${r},${g},${b})`;
+      }
+    }
+    return '#D7A32E';
+  }
+
+  function renderRoute(pathIdxs, closed){
+    markerLayer.clearLayers();
+    if(routeLine){ map.removeLayer(routeLine); routeLine = null; }
+    if(roadLine){ map.removeLayer(roadLine); roadLine = null; }
+    const latlngs = pathIdxs.map(i => [points[i].lat, points[i].lon]);
+    if(closed) latlngs.push(latlngs[0]);
+
+    routeLine = L.polyline(latlngs, {color:'#2B2620', weight:4, opacity:0.25}).addTo(map);
+    L.polyline(latlngs, {color:'#D7A32E', weight:2.5, opacity:0.95, dashArray:'1,7', lineCap:'round'}).addTo(markerLayer);
+
+    const total = pathIdxs.length;
+    pathIdxs.forEach((idx, order) => {
+      const p = points[idx];
+      const frac = total>1 ? order/(total-1) : 0;
+      let fill = colorForFraction(frac);
+      let radius = 5;
+      if(order===0){ fill = '#2E4632'; radius=7; }
+      if(order===total-1 && !closed){ fill = '#832F22'; radius=7; }
+      const m = L.circleMarker([p.lat, p.lon], {
+        radius, weight:1.4, color:'#2B2620', fillColor:fill, fillOpacity:0.95
+      }).bindPopup(`<b>#${order+1} ${escapeHtml(p.name)}</b>`);
+      m.on('click', () => highlightListItem(idx));
+      m.addTo(markerLayer);
+    });
+
+    const bounds = latlngs;
+    if(bounds.length) map.fitBounds(bounds, {padding:[24,24]});
+  }
+
+  function highlightListItem(idx){
+    const el = els.routeList.querySelector(`[data-idx="${idx}"]`);
+    if(el){
+      el.scrollIntoView({behavior:'smooth', block:'center'});
+      el.style.background = '#EFE6D0';
+      setTimeout(()=>{ el.style.background=''; }, 900);
+    }
+  }
+
+  function renderRouteList(pathIdxs, mat, closed){
+    els.emptyState.style.display = 'none';
+    els.routeList.innerHTML = '';
+    const total = pathIdxs.length;
+    for(let order=0; order<total; order++){
+      const idx = pathIdxs[order];
+      const p = points[idx];
+      const li = document.createElement('li');
+      li.className = 'stop-item' + (order===0?' start':'') + (order===total-1 && !closed?' end':'');
+      li.dataset.idx = idx;
+      li.dataset.name = p.name.toLowerCase();
+      let legTxt = '';
+      if(order < total-1 || closed){
+        const nextIdx = pathIdxs[(order+1)%total];
+        const d = mat[idx*n+nextIdx];
+        legTxt = `${d.toFixed(2)} km to next stop`;
+      } else {
+        legTxt = 'final stop';
+      }
+      li.innerHTML = `<div class="stop-num">${order+1}</div>
+        <div><div class="stop-name">${escapeHtml(p.name)}</div><div class="stop-leg">${legTxt}</div></div>`;
+      li.addEventListener('click', () => {
+        map.setView([p.lat, p.lon], 16, {animate:true});
+      });
+      els.routeList.appendChild(li);
+    }
+  }
+
+  // ---------- Solve orchestration ----------
+  function runSolve(){
+    if(n < 3){
+      alert('Need at least 3 stops to plan a route.');
+      return;
+    }
+    solving = true;
+    stopRequested = false;
+    els.solveBtn.disabled = true;
+    els.stopBtn.style.display = 'block';
+    els.progressWrap.style.display = 'block';
+    els.progressLabel.style.display = 'block';
+    els.progressBar.style.width = '0%';
+
+    const wantsDrivingMatrix = distanceMode === 'driving' && els.optimizeDrivingChk.checked && n <= DRIVING_MATRIX_MAX;
+
+    if(wantsDrivingMatrix){
+      els.progressLabel.textContent = 'Fetching real driving distances from OSRM…';
+      const controller = new AbortController();
+      currentAbort = controller;
+      osrmTableMatrix(points, 25, (done, total) => {
+        els.progressBar.style.width = Math.round(100*done/total) + '%';
+        els.progressLabel.textContent = `Fetching driving distances… ${done}/${total} stops`;
+      }, controller.signal).then(mat => {
+        distMat = mat;
+        neighborLists = buildNeighborLists(distMat, n, Math.min(14, n-1));
+        beginSolve();
+      }).catch(err => {
+        alert('Could not fetch driving distances from the routing service (' + (err && err.message || err) + '). Falling back to straight-line distances for optimization.');
+        distMat = computeDistanceMatrix(points);
+        neighborLists = buildNeighborLists(distMat, n, Math.min(14, n-1));
+        beginSolve();
+      });
+      return;
+    }
+
+    if(!distMat){
+      els.progressLabel.textContent = 'Computing distances between all stops…';
+      setTimeout(()=>{
+        distMat = computeDistanceMatrix(points);
+        neighborLists = buildNeighborLists(distMat, n, Math.min(14, n-1));
+        beginSolve();
+      }, 30);
+    } else {
+      beginSolve();
+    }
+  }
+
+  let currentAbort = null;
+
+  function beginSolve(){
+    const timeBudget = parseInt(els.effortSelect.value, 10);
+    const startVal = els.startSelect.value;
+    let startIdx = 0;
+    if(startVal !== 'auto'){
+      const masterIdx = parseInt(startVal, 10);
+      const localIdx = points.indexOf(allPoints[masterIdx]);
+      startIdx = localIdx >= 0 ? localIdx : 0;
+    }
+
+    solveAsync(
+      { mat: distMat, nn: n, nbrLists: neighborLists, timeBudget, startIdx },
+      (pct, bestLen, iters, elapsed) => {
+        els.progressBar.style.width = pct + '%';
+        els.progressLabel.textContent = `Optimizing… ${(elapsed/1000).toFixed(1)}s elapsed · best so far ${bestLen.toFixed(1)} km · ${iters} refinements`;
+      },
+      (bestTour, bestLen, nnLen, iters, elapsed) => {
+        finishSolve(bestTour, bestLen, nnLen, elapsed, startIdx);
+      }
+    );
+  }
+
+  function finishSolve(bestTour, bestLen, nnLen, elapsed, startIdx){
+    solving = false;
+    els.solveBtn.disabled = false;
+    els.stopBtn.style.display = 'none';
+    els.progressWrap.style.display = 'none';
+    els.progressLabel.style.display = 'none';
+
+    const hasExplicitStart = els.startSelect.value !== 'auto';
+    currentTour = bestTour;
+    let closed = tripMode === 'loop';
+    let finalPath = bestTour;
+    let finalLen = bestLen;
+
+    if(tripMode === 'loop'){
+      if(hasExplicitStart){
+        finalPath = rotateToStart(bestTour, startIdx);
+      }
+    } else {
+      const { path, droppedDistance } = makeOpenFromClosed(bestTour, distMat, n, startIdx, hasExplicitStart);
+      finalPath = path;
+      finalLen = bestLen - droppedDistance;
+      closed = false;
+    }
+
+    displayTour = finalPath;
+    renderRoute(finalPath, closed);
+    renderRouteList(finalPath, distMat, closed);
+
+    els.statsPanel.style.display = 'block';
+    els.statStops.textContent = n;
+    els.statDist.textContent = finalLen.toFixed(1) + ' km';
+    const improvement = nnLen > 0 ? (100*(1 - bestLen/nnLen)) : 0;
+    els.statImprove.textContent = (improvement>=0.05 ? '−' : '') + Math.abs(improvement).toFixed(1) + '%';
+    els.statTime.textContent = (elapsed/1000).toFixed(1) + 's';
+
+    if(distanceMode === 'driving'){
+      fetchRoadRoute(finalPath, closed);
+    }
+  }
+
+  // After the (fast, straight-line-optimized) order is fixed, fetch the actual
+  // road geometry for that exact sequence — draws a solid road-following line
+  // on top of the dashed straight-line reference, and swaps the headline distance
+  // to the real driving total once it arrives. The straight-line route stays
+  // visible underneath the whole time.
+  async function fetchRoadRoute(pathIdxs, closed){
+    if(roadLine){ map.removeLayer(roadLine); roadLine = null; }
+    els.statDist.dataset.driving = '';
+    const note = document.getElementById('drivingFetchNote');
+    if(note){ note.textContent = 'Fetching real road route from OSRM…'; note.style.display = 'block'; }
+
+    const orderedPts = pathIdxs.map(i => points[i]);
+    if(closed) orderedPts.push(orderedPts[0]);
+
+    const controller = new AbortController();
+    currentAbort = controller;
+    try{
+      const { latlngs, totalKm } = await osrmRouteForPath(orderedPts, 20, (done,total) => {
+        if(note) note.textContent = `Fetching real road route… ${done}/${total} stops`;
+      }, controller.signal);
+
+      roadLine = L.polyline(latlngs, {color:'#3F5D42', weight:3.5, opacity:0.9}).addTo(map);
+      roadLine.bringToFront();
+      els.statDist.textContent = totalKm.toFixed(1) + ' km';
+      els.statDist.dataset.driving = '1';
+      if(note){ note.textContent = 'Solid green line = actual driving route (' + totalKm.toFixed(1) + ' km). Dashed line = straight-line reference.'; }
+    } catch(err){
+      if(note){ note.textContent = 'Could not fetch road geometry from OSRM (' + (err && err.message || err) + '). Showing straight-line route only.'; }
+    }
+  }
+
+  // ---------- Export ----------
+  function downloadFile(filename, content, mime){
+    const blob = new Blob([content], {type: mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function exportGPX(){
+    if(!displayTour) return;
+    const pts = displayTour.map(i => points[i]);
+    const wpts = pts.map(p => `  <wpt lat="${p.lat}" lon="${p.lon}"><name>${escapeHtml(p.name)}</name></wpt>`).join('\n');
+    const trkpts = pts.map(p => `      <trkpt lat="${p.lat}" lon="${p.lon}"></trkpt>`).join('\n');
+    const closedTrk = (tripMode==='loop') ? `      <trkpt lat="${pts[0].lat}" lon="${pts[0].lon}"></trkpt>\n` : '';
+    const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Little Library Loop" xmlns="http://www.topografix.com/GPX/1/1">
+${wpts}
+  <trk><name>Little Library Route</name><trkseg>
+${trkpts}
+${closedTrk}  </trkseg></trk>
+</gpx>`;
+    downloadFile('little-library-route.gpx', gpx, 'application/gpx+xml');
+  }
+
+  function exportCSV(){
+    if(!displayTour) return;
+    const rows = ['order,name,lat,lon'];
+    displayTour.forEach((idx, order) => {
+      const p = points[idx];
+      rows.push(`${order+1},"${p.name.replace(/"/g,'""')}",${p.lat},${p.lon}`);
+    });
+    downloadFile('little-library-route.csv', rows.join('\n'), 'text/csv');
+  }
+
+  // ---------- Events ----------
+  els.modeLoop.addEventListener('click', () => {
+    tripMode = 'loop';
+    els.modeLoop.classList.add('active');
+    els.modeOpen.classList.remove('active');
+  });
+  els.modeOpen.addEventListener('click', () => {
+    tripMode = 'open';
+    els.modeOpen.classList.add('active');
+    els.modeLoop.classList.remove('active');
+  });
+
+  els.distDirect.addEventListener('click', () => {
+    distanceMode = 'direct';
+    els.distDirect.classList.add('active');
+    els.distDriving.classList.remove('active');
+    els.drivingOptions.style.display = 'none';
+  });
+  els.distDriving.addEventListener('click', () => {
+    distanceMode = 'driving';
+    els.distDriving.classList.add('active');
+    els.distDirect.classList.remove('active');
+    els.drivingOptions.style.display = 'block';
+    updateDrivingCapNote();
+  });
+  els.optimizeDrivingChk.addEventListener('change', () => { distMat = null; });
+
+  function updateDrivingCapNote(){
+    if(!els.drivingCapNote) return;
+    if(n > DRIVING_MATRIX_MAX){
+      els.optimizeDrivingChk.checked = false;
+      els.optimizeDrivingChk.disabled = true;
+      els.drivingCapNote.textContent = `Optimizing against a full driving-time matrix needs ≤ ${DRIVING_MATRIX_MAX} stops (currently ${n}). Narrow the range slider to enable it — otherwise the route order is optimized by straight-line distance and then drawn/measured along real roads.`;
+    } else {
+      els.optimizeDrivingChk.disabled = false;
+      els.drivingCapNote.textContent = `${n} stops — within the ${DRIVING_MATRIX_MAX}-stop limit for optimizing directly against real driving distances.`;
+    }
+  }
+
+  els.startSelect.addEventListener('change', () => {
+    delete els.radiusSlider.dataset.userTouched;
+    updateRadiusRange();
+    applyRadiusFilter();
+  });
+
+  els.radiusSlider.addEventListener('input', () => {
+    els.radiusSlider.dataset.userTouched = '1';
+    applyRadiusFilter();
+  });
+
+  els.gpuChk.addEventListener('change', () => {
+    gpuUserEnabled = els.gpuChk.checked;
+    distMat = null;
+    updateGpuStatus(false);
+  });
+
+  els.solveBtn.addEventListener('click', runSolve);
+  els.stopBtn.addEventListener('click', () => {
+    stopRequested = true;
+    if(currentAbort) currentAbort.abort();
+  });
+
+  els.downloadGpx.addEventListener('click', exportGPX);
+  els.downloadCsv.addEventListener('click', exportCSV);
+
+  els.routeSearch.addEventListener('input', () => {
+    const q = els.routeSearch.value.trim().toLowerCase();
+    Array.from(els.routeList.children).forEach(li => {
+      li.style.display = li.dataset.name.includes(q) ? '' : 'none';
+    });
+  });
+
+  els.dropzone.addEventListener('click', () => els.fileInput.click());
+  els.dropzone.addEventListener('dragover', (e) => { e.preventDefault(); els.dropzone.classList.add('drag'); });
+  els.dropzone.addEventListener('dragleave', () => els.dropzone.classList.remove('drag'));
+  els.dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    els.dropzone.classList.remove('drag');
+    const f = e.dataTransfer.files[0];
+    if(f) handleFile(f);
+  });
+  els.fileInput.addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if(f) handleFile(f);
+  });
+
+  function handleFile(file){
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const parsed = parseKML(reader.result);
+        if(parsed.length < 3){
+          alert('Found fewer than 3 valid Placemarks with coordinates in this file.');
+          return;
+        }
+        els.fileInfo.textContent = `Loaded "${file.name}" — ${parsed.length} stops.`;
+        delete els.radiusSlider.dataset.userTouched;
+        setAllPoints(parsed);
+      } catch(err){
+        alert('Could not read this file: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------- Init ----------
+  initMap();
+  setAllPoints(RAW_DATA);
+})();
+
+</script>
+</body>
+</html>
