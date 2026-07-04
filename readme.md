@@ -55,3 +55,10 @@ The front-end design uses a vintage, editorial style system dubbed **Paper & Bar
 * **Primary Elements (`--pine`):** `#3F5D42` / Foliage green for active paths and primary status indicators.
 * **Accents (`--barn` / `--mustard`):** `#A63D2C` / `#D7A32E` / Used for stop numbers, visual progression, and map endpoint elements.
 * **Progressive Color Shading:** The map markers use a multi-stop color gradient matching their order along the route, making path sequencing clear at a glance.
+
+
+
+<img width="1445" height="978" alt="image" src="https://github.com/user-attachments/assets/12b350cc-2b0d-4d94-8a34-bb166f0ada39" />
+
+
+<img width="911" height="662" alt="image" src="https://github.com/user-attachments/assets/1f0e2ba7-f847-4f85-8c23-9d952b272e90" />
